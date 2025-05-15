@@ -18,17 +18,6 @@ export default defineConfig({
     action: {
       default_popup: "popup/index.html",
     },
-    background: {
-      service_worker: "background/index.ts",
-      type: "module",
-    },
-    content_scripts: [
-      {
-        matches: ["https://www.youtube.com/*"],
-        js: ["content/youtube.ts"],
-        run_at: "document_idle",
-      },
-    ],
     // icons: {
     //   16: "public/icon/16.png",
     //   48: "public/icon/48.png",
