@@ -1,35 +1,41 @@
-import { useState } from 'react';
-import reactLogo from '@/assets/react.svg';
-import wxtLogo from '/wxt.svg';
-import './App.css';
+import { useEffect, useState } from "react";
+import { VideoProgress } from "../../model/VideoProgress";
 
-function App() {
-  const [count, setCount] = useState(0);
+export default function App() {
+  const [videos, setVideos] = useState<Record<string, VideoProgress>>({});
+
+  useEffect(() => {
+    chrome.storage.local.get("video_progress", (data) => {
+      setVideos(data.video_progress || {});
+    });
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>WXT + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the WXT and React logos to learn more
-      </p>
-    </>
+    <div className="h-[600px] w-[400px] bg-white text-black p-4">
+      <h1 className="text-xl font-bold mb-4">SmartSeek</h1>
+      {Object.keys(videos).length === 0 ? (
+        <p>No saved videos yet.</p>
+      ) : (
+        <ul className="space-y-3">
+          {Object.entries(videos).map(([id, v]) => (
+            <li key={id} className="border p-2 rounded bg-gray-100">
+              <div className="font-medium">{v.title || "Untitled"}</div>
+              <div className="text-xs text-gray-600">
+                Timestamp: {Math.floor(v.lastWatched)}s
+              </div>
+              <a
+                className="text-blue-500 text-xs underline"
+                href={`https://www.youtube.com/watch?v=${id}&t=${Math.floor(
+                  v.lastWatched
+                )}s`}
+                target="_blank"
+              >
+                Resume on YouTube
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
-
-export default App;
