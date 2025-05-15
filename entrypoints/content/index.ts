@@ -14,9 +14,6 @@ export default defineContentScript({
       if (progressIntervalId !== null) {
         clearInterval(progressIntervalId);
         progressIntervalId = null;
-        console.log(
-          "[SmartSeek] Cleared previous progress tracking interval due to URL change."
-        );
       }
       initSmartSeek();
     });
@@ -106,22 +103,14 @@ async function initSmartSeek() {
   if (progressIntervalId !== null) {
     clearInterval(progressIntervalId);
     progressIntervalId = null;
-    console.log(
-      "[SmartSeek] Cleared progress tracking interval at initSmartSeek."
-    );
   }
 
   removeManualSaveButton();
 
   const videoId = getVideoId();
   if (!videoId) {
-    console.log(
-      "[SmartSeek] No video ID found on this page. Stopping tracking."
-    );
     return;
   }
-
-  console.log(`[SmartSeek] Initializing for video ID: ${videoId}`);
 
   try {
     const video = await waitForVideo();
@@ -149,18 +138,13 @@ async function restoreProgress(video: HTMLVideoElement, videoId: string) {
         saved.lastWatched < video.duration - 5
       ) {
         video.currentTime = saved.lastWatched;
-        console.log(`[SmartSeek] Restored ${videoId} to ${saved.lastWatched}s`);
       } else if (!video.duration || !isFinite(video.duration)) {
-        console.log(
-          `[SmartSeek] Video duration not yet available for ${videoId}. Cannot restore.`
-        );
       }
     };
 
     if (video.readyState >= 1) {
       tryRestore();
     } else {
-      console.log(`[SmartSeek] Waiting for metadata to restore ${videoId}...`);
       video.addEventListener("loadedmetadata", tryRestore, { once: true });
     }
   }
@@ -177,9 +161,6 @@ function trackProgress(video: HTMLVideoElement, videoId: string) {
   progressIntervalId = window.setInterval(() => {
     const currentPageVideoId = getVideoId();
     if (currentPageVideoId !== videoId) {
-      console.log(
-        `[SmartSeek] Stale interval for ${videoId} detected on page for ${currentPageVideoId}. Clearing self.`
-      );
       if (progressIntervalId !== null) clearInterval(progressIntervalId);
       progressIntervalId = null;
       return;
@@ -213,81 +194,163 @@ function trackProgress(video: HTMLVideoElement, videoId: string) {
       saveTimestamp(progressData);
     }
   }, 5000);
-
-  console.log(
-    `[SmartSeek] Started progress tracking for video ID: ${videoId} with interval ID: ${progressIntervalId}`
-  );
 }
 
 // --- Manual Save Button Logic ---
 
 function createManualSaveButtonElement(
-  initialVideoElement: HTMLVideoElement,
-  videoId: string
+  _initialVideoElement: HTMLVideoElement,
+  _videoId: string
 ): HTMLButtonElement {
   const button = document.createElement("button");
   button.id = MANUAL_SAVE_BUTTON_ID;
-  button.textContent = "Save Timestamp";
+  button.innerHTML = "";
 
-  button.style.padding = "0 16px";
-  button.style.marginLeft = "8px";
-  button.style.height = "36px";
-  button.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
-  button.style.color = "white";
-  button.style.border = "none";
-  button.style.borderRadius = "18px";
-  button.style.cursor = "pointer";
+  const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgIcon.setAttribute("viewBox", "0 0 24 24");
+  svgIcon.setAttribute("focusable", "false");
+  svgIcon.style.pointerEvents = "none";
+  svgIcon.style.display = "block";
+  svgIcon.style.width = "24px";
+  svgIcon.style.height = "24px";
+  svgIcon.style.fill = "currentColor";
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute(
+    "d",
+    "M17,3H7C5.9,3,5,3.9,5,5v16l7-3l7,3V5C19,3.9,18.1,3,17,3z M17,18l-5-2.18L7,18V5h10V18z"
+  );
+  svgIcon.appendChild(path);
+  button.appendChild(svgIcon);
+
+  button.style.display = "flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "center";
+
+  button.style.fontFamily = 'Roboto, "YouTube Noto", Arial, sans-serif';
   button.style.fontSize = "14px";
   button.style.fontWeight = "500";
-  button.style.lineHeight = "36px";
-  button.setAttribute("role", "button");
 
-  button.onmouseover = () =>
-    (button.style.backgroundColor = "rgba(255, 255, 255, 0.2)");
-  button.onmouseout = () =>
-    (button.style.backgroundColor = "rgba(255, 255, 255, 0.1)");
+  button.style.height = "36px";
+  button.style.width = "36px";
+  button.style.minWidth = "36px";
+  button.style.padding = "0";
+  button.style.boxSizing = "border-box";
+
+  button.style.marginRight = "8px";
+  button.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+  button.style.color = "#fff";
+  button.style.border = "none";
+  button.style.borderRadius = "50%";
+  button.style.cursor = "pointer";
+  button.style.overflow = "hidden";
+
+  button.setAttribute("title", "Save video timestamp");
+  button.setAttribute("role", "button");
+  button.setAttribute("aria-label", "Save video timestamp");
+
+  button.onmouseover = () => {
+    button.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  };
+
+  button.onmouseout = () => {
+    button.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+  };
+
+  let isSaved = false;
+  let feedbackTimeout: number | null = null;
 
   button.onclick = async (e) => {
     e.stopPropagation();
 
-    const currentVideoElement =
-      document.querySelector("video.html5-main-video") ||
-      document.querySelector("video[src]");
+    if (isSaved) return;
+
+    const currentVideoElement = document.querySelector("video");
     const currentVideoId = getVideoId();
 
     if (!currentVideoElement || !currentVideoId) {
-      button.textContent = "Error!";
-      setTimeout(() => {
-        if (document.getElementById(MANUAL_SAVE_BUTTON_ID))
-          button.textContent = "Save Timestamp";
-      }, 2000);
+      console.error(
+        "[SmartSeek] Manual save: Video element or ID not found on click."
+      );
+
+      showErrorState();
       return;
     }
 
     try {
-      const currentTime = Math.floor(
-        (currentVideoElement as HTMLVideoElement).currentTime
-      );
+      const currentTime = Math.floor(currentVideoElement.currentTime);
       const title = document.title;
+
+      showProcessingState();
+
       await saveTimestamp({
         videoId: currentVideoId,
         lastWatched: currentTime,
         updatedAt: new Date().toISOString(),
         title: title,
       });
-      button.textContent = "Saved!";
-      setTimeout(() => {
-        if (document.getElementById(MANUAL_SAVE_BUTTON_ID))
-          button.textContent = "Save Timestamp";
-      }, 2000);
+
+      showSuccessState();
     } catch (err) {
-      button.textContent = "Error Saving";
-      setTimeout(() => {
-        if (document.getElementById(MANUAL_SAVE_BUTTON_ID))
-          button.textContent = "Save Timestamp";
-      }, 2000);
+      console.error("[SmartSeek] Error during manual save:", err);
+      showErrorState();
     }
   };
+
+  function showProcessingState() {
+    svgIcon.style.opacity = "0.7";
+    button.style.backgroundColor = "rgba(255, 255, 255, 0.15)";
+  }
+
+  function showSuccessState() {
+    if (feedbackTimeout !== null) {
+      clearTimeout(feedbackTimeout);
+    }
+
+    path.setAttribute(
+      "d",
+      "M17,3H7C5.9,3,5,3.9,5,5v16l7-3l7,3V5C19,3.9,18.1,3,17,3z"
+    );
+
+    svgIcon.style.fill = "#aaffaa";
+    svgIcon.style.opacity = "1";
+    button.style.backgroundColor = "rgba(170, 255, 170, 0.2)";
+    button.setAttribute("title", "Timestamp saved!");
+    button.setAttribute("aria-label", "Timestamp saved");
+
+    isSaved = true;
+
+    feedbackTimeout = window.setTimeout(() => {
+      path.setAttribute(
+        "d",
+        "M17,3H7C5.9,3,5,3.9,5,5v16l7-3l7,3V5C19,3.9,18.1,3,17,3z M17,18l-5-2.18L7,18V5h10V18z"
+      );
+      svgIcon.style.fill = "currentColor";
+      button.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+      button.setAttribute("title", "Save video timestamp");
+      button.setAttribute("aria-label", "Save video timestamp");
+      isSaved = false;
+    }, 2000);
+  }
+
+  function showErrorState() {
+    if (feedbackTimeout !== null) {
+      clearTimeout(feedbackTimeout);
+    }
+
+    svgIcon.style.fill = "#ffaaaa";
+    button.style.backgroundColor = "rgba(255, 170, 170, 0.2)";
+    button.setAttribute("title", "Error saving timestamp");
+    button.setAttribute("aria-label", "Error saving timestamp");
+
+    feedbackTimeout = window.setTimeout(() => {
+      svgIcon.style.fill = "currentColor";
+      button.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+      button.setAttribute("title", "Save video timestamp");
+      button.setAttribute("aria-label", "Save video timestamp");
+    }, 2000);
+  }
+
   return button;
 }
 
@@ -313,17 +376,92 @@ async function setupManualSaveButton(
   }
 
   if (parentToInsertIn) {
-    const referenceNode = parentToInsertIn.querySelector(
-      "ytd-button-renderer, ytd-toggle-button-renderer"
-    );
-    if (referenceNode) {
-      parentToInsertIn.insertBefore(button, referenceNode);
+    if (parentToInsertIn.firstChild) {
+      parentToInsertIn.insertBefore(button, parentToInsertIn.firstChild);
     } else {
       parentToInsertIn.appendChild(button);
     }
-    updateButtonVisibility(); // Set initial visibility
+
+    updateButtonVisibility();
+
+    const INTRO_TOOLTIP_ID = "smartseek-manual-save-intro-tooltip";
+    const HAS_SEEN_INTRO_KEY = "smartseek-intro-manual-save-button-v1";
+
+    document.getElementById(INTRO_TOOLTIP_ID)?.remove();
+
+    const hasSeenIntro = localStorage.getItem(HAS_SEEN_INTRO_KEY);
+
+    if (!hasSeenIntro && button && button.offsetParent !== null) {
+      const tooltip = document.createElement("div");
+      tooltip.id = INTRO_TOOLTIP_ID;
+      tooltip.textContent =
+        "New! Click the save icon to manually save the current video timestamp.";
+
+      tooltip.style.position = "absolute";
+      tooltip.style.backgroundColor = "rgba(24, 26, 27, 0.92)";
+      tooltip.style.color = "white";
+      tooltip.style.padding = "10px 15px";
+      tooltip.style.borderRadius = "8px";
+      tooltip.style.fontSize = "14px";
+      tooltip.style.zIndex = "2147483647";
+      tooltip.style.fontFamily = 'Roboto, "YouTube Noto", Arial, sans-serif';
+      tooltip.style.boxShadow = "0 5px 15px rgba(0,0,0,0.35)";
+      tooltip.style.maxWidth = "230px";
+      tooltip.style.textAlign = "center";
+      tooltip.style.lineHeight = "1.45";
+      tooltip.style.pointerEvents = "auto";
+      tooltip.style.opacity = "0";
+      tooltip.style.transition = "opacity 0.3s ease-in-out";
+
+      document.body.appendChild(tooltip);
+
+      const buttonRect = button.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+
+      let topPosition = buttonRect.top - tooltipRect.height - 12;
+      let leftPosition =
+        buttonRect.left + buttonRect.width / 2 - tooltipRect.width / 2;
+
+      if (topPosition < 10) {
+        topPosition = buttonRect.bottom + 12;
+      }
+      if (leftPosition < 10) {
+        leftPosition = 10;
+      }
+      if (leftPosition + tooltipRect.width > window.innerWidth - 10) {
+        leftPosition = window.innerWidth - tooltipRect.width - 10;
+      }
+
+      tooltip.style.top = `${topPosition + window.scrollY}px`;
+      tooltip.style.left = `${leftPosition + window.scrollX}px`;
+
+      requestAnimationFrame(() => {
+        tooltip.style.opacity = "1";
+      });
+
+      let tooltipTimeoutId: number | null = null;
+
+      const dismissTooltip = () => {
+        if (tooltipTimeoutId !== null) {
+          clearTimeout(tooltipTimeoutId);
+          tooltipTimeoutId = null;
+        }
+        tooltip.style.opacity = "0";
+        setTimeout(() => {
+          if (tooltip.parentElement) {
+            tooltip.remove();
+          }
+        }, 300);
+        tooltip.removeEventListener("click", dismissTooltip);
+      };
+
+      tooltip.addEventListener("click", dismissTooltip);
+      tooltipTimeoutId = window.setTimeout(dismissTooltip, 7000);
+
+      localStorage.setItem(HAS_SEEN_INTRO_KEY, "true");
+    }
   } else {
-    
+    console.warn("[SmartSeek] Could not find target element to insert button");
   }
 }
 
