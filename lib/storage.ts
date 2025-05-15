@@ -6,8 +6,8 @@ const EXPIRATION_DAYS = 45;
 function isExpired(dateStr: string): boolean {
   const updated = new Date(dateStr);
   const now = new Date();
-  const diffInMs = now.getTime() - updated.getTime();
-  const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+  const diffInDays =
+    (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
   return diffInDays > EXPIRATION_DAYS;
 }
 
@@ -39,7 +39,6 @@ export async function getTimestamp(
   videoId: string
 ): Promise<VideoProgress | null> {
   await cleanupOldTimestamps();
-
   const data = await chrome.storage.local.get(STORAGE_KEY);
   return data[STORAGE_KEY]?.[videoId] || null;
 }
