@@ -1,5 +1,6 @@
 import { VideoProgress } from "@/model/VideoProgress";
 import { useEffect, useMemo, useState } from "react";
+import { deleteVideo, getTimestamp, saveTimestamp } from "../../lib/storage";
 
 type SortOption =
   | "default"
@@ -18,12 +19,30 @@ export default function App() {
     chrome.storage.local.get("video_progress", (data) => {
       setVideos(data.video_progress || {});
     });
+
+    const storageChangeListener = (changes: any, areaName: string) => {
+      if (areaName === "local" && changes.video_progress) {
+        setVideos(changes.video_progress.newValue || {});
+      }
+    };
+    chrome.storage.onChanged.addListener(storageChangeListener);
+
+    return () => {
+      chrome.storage.onChanged.removeListener(storageChangeListener);
+    };
   }, []);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds < 0) seconds = 0;
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
+
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
+    }
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -33,6 +52,16 @@ export default function App() {
     if (!newVisibility) {
       setSearchTerm("");
       setSortOrder("default");
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: string, videoTitle?: string) => {
+    const title = videoTitle || "this video";
+    if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
+      await deleteVideo(videoId);
+      chrome.storage.local.get("video_progress", (data) => {
+        setVideos(data.video_progress || {});
+      });
     }
   };
 
@@ -60,6 +89,11 @@ export default function App() {
         break;
       case "default":
       default:
+        videoEntries.sort(([, a], [, b]) => {
+          const dateA = new Date(a.updatedAt).getTime();
+          const dateB = new Date(b.updatedAt).getTime();
+          return dateB - dateA;
+        });
         break;
     }
     return videoEntries;
@@ -214,8 +248,11 @@ export default function App() {
                 key={id}
                 className="rounded-lg bg-white border border-[#d1d5db] shadow-sm overflow-hidden transition-shadow hover:shadow-md"
               >
-                <div className="flex">
-                  <div className="relative w-32 h-20 bg-gray-300 flex-shrink-0">
+                <div className="flex items-center">
+                  {" "}
+                  <div className="relative w-28 md:w-32 h-19 bg-gray-300 flex-shrink-0">
+                    {" "}
+
                     <img
                       src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`}
                       alt={video.title || "Video thumbnail"}
@@ -225,44 +262,63 @@ export default function App() {
                           "https://via.placeholder.com/128x72.png?text=No+Thumb")
                       }
                     />
-                    <div className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-[11px] px-1.5 py-0.5 rounded">
+                    <div className="absolute bottom-0.5 right-0.5 bg-black bg-opacity-75 text-white text-[10px] px-1 py-0.5 rounded-sm">
                       {formatTime(video.lastWatched)}
                     </div>
                   </div>
-                  <div className="flex-1 p-3 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-semibold text-sm text-[#2d3133] line-clamp-2 leading-tight">
-                        {video.title || "Untitled Video"}
-                      </h3>
-                      <p className="text-xs text-[#313536] mt-1">
-                        Watched upto {formatTime(video.lastWatched)}
-                      </p>
-                    </div>
+                  <div className="flex-1 p-2.5 min-w-0">
+                    {" "}
+                    <h3 className="font-semibold text-sm text-[#2d3133] line-clamp-2 leading-tight break-words">
+                      {video.title || "Untitled Video"}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {" "}
+                      Watched up to {formatTime(video.lastWatched)}
+                    </p>
                   </div>
-                  <div className="flex items-center pr-3">
+                  <div className="flex items-center justify-end space-x-1 p-2 flex-shrink-0">
+                    {" "}
                     <a
                       href={`https://www.youtube.com/watch?v=${id}&t=${Math.floor(
                         video.lastWatched
                       )}s`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-full bg-[#2d3133] text-[#f4f2ee] p-2.5 hover:bg-[#313536] transition-colors"
+                      className="rounded-full bg-[#2d3133] text-[#f4f2ee] p-1.5 hover:bg-[#3e4244] transition-colors flex items-center justify-center"
                       aria-label="Play video"
+                      title="Play video"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="currentColor"
-                        stroke="currentColor"
-                        strokeWidth="0"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
                       >
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                       </svg>
                     </a>
+                    <button
+                      onClick={() => handleDeleteVideo(id, video.title)}
+                      className="rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100 p-1.5 transition-colors flex items-center justify-center cursor-pointer"
+                      aria-label="Delete video"
+                      title="Delete video"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </li>

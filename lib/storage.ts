@@ -42,3 +42,14 @@ export async function getTimestamp(
   const data = await chrome.storage.local.get(STORAGE_KEY);
   return data[STORAGE_KEY]?.[videoId] || null;
 }
+
+export async function deleteVideo(videoId: string): Promise<void> {
+  await cleanupOldTimestamps();
+  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
+
+  if (all[videoId]) {
+    delete all[videoId];
+    await chrome.storage.local.set({ [STORAGE_KEY]: all });
+  }
+}
