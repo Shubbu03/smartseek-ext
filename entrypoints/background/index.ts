@@ -3,6 +3,14 @@ import { cleanupOldTimestamps } from "../../lib/storage";
 export default defineBackground(() => {
   console.log("SmartSeek background started", { id: browser.runtime.id });
 
+  chrome.runtime.setUninstallURL("https://forms.gle/QGixqWqdrdxABfYx9", () => {
+    if (chrome.runtime.lastError) {
+      console.error("Error setting uninstall URL:", chrome.runtime.lastError);
+    } else {
+      console.log("Uninstall URL set successfully");
+    }
+  });
+
   chrome.runtime.onInstalled.addListener(() => {
     console.log("SmartSeek installed/updated.");
     cleanupOldTimestamps().catch((error) => {

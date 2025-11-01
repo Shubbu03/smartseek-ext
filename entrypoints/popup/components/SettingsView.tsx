@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { getSettings, saveSettings, Settings } from "../../../lib/settings";
 import { deleteAllVideos } from "../../../lib/storage";
 import { VideoViewType } from "../types";
-import { FiChevronDown } from "react-icons/fi";
+import { FiChevronDown, FiExternalLink, FiCoffee } from "react-icons/fi";
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<Settings>({ saveMusicVideosOnly: false });
@@ -182,6 +182,36 @@ export default function SettingsView() {
             >
               Delete All Videos
             </button>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-[#d1d5db]">
+          <div className="space-y-3">
+            <a
+              href="https://forms.gle/6JQwnkcHYBHN5Fz9A"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#d1d5db] shadow-sm hover:shadow-md transition-shadow group"
+            >
+              <div className="flex items-center gap-2">
+                <FiExternalLink size={18} className="text-gray-500 group-hover:text-[#2d3133] transition-colors" />
+                <span className="text-sm text-[#2d3133]">Request a Feature</span>
+              </div>
+              <FiExternalLink size={14} className="text-gray-400" />
+            </a>
+
+            <a
+              href="https://buymeacoffee.com/shubbu"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#d1d5db] shadow-sm hover:shadow-md transition-shadow group"
+            >
+              <div className="flex items-center gap-2">
+                <FiCoffee size={18} className="text-yellow-500 group-hover:text-yellow-600 transition-colors" />
+                <span className="text-sm text-[#2d3133]">Support SmartSeek</span>
+              </div>
+              <span className="text-xs text-gray-400">☕</span>
+            </a>
           </div>
         </div>
       </div>
