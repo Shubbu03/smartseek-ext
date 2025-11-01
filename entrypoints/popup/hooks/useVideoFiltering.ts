@@ -23,7 +23,12 @@ export function useVideoFiltering(
         if (!video.isMusic) {
           return false;
         }
-      } else { }
+      } else if (viewType === "favourites") {
+        if (!video.isFavorite) {
+          return false;
+        }
+      } else {
+      }
 
       return (video.title || "").toLowerCase().includes(searchTerm.toLowerCase());
     });

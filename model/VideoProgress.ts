@@ -5,4 +5,5 @@ export type VideoProgress = {
   duration?: number;
   updatedAt: string;
   isMusic?: boolean;
+  isFavorite?: boolean;
 };

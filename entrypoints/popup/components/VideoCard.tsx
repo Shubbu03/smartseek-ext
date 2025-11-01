@@ -1,21 +1,23 @@
 import { VideoProgress } from "@/model/VideoProgress";
-import { FiPlay, FiTrash2 } from "react-icons/fi";
+import { FiPlay, FiTrash2, FiStar } from "react-icons/fi";
 import { formatTime, calculateProgress, getProgressColor } from "../utils/videoUtils";
 
 type VideoCardProps = {
   videoId: string;
   video: VideoProgress;
   onDelete: (videoId: string, videoTitle?: string) => void;
+  onToggleFavorite: (videoId: string) => void;
 };
 
-export default function VideoCard({ videoId, video, onDelete }: VideoCardProps) {
+export default function VideoCard({ videoId, video, onDelete, onToggleFavorite }: VideoCardProps) {
   const progress = calculateProgress(video);
   const progressColor = getProgressColor(progress);
+  const isFavorite = video.isFavorite || false;
 
   return (
     <li className="rounded-lg bg-white border border-[#d1d5db] shadow-sm overflow-hidden transition-all hover:shadow-md hover:scale-[1.01]">
       <div className="flex items-stretch">
-        <div className="relative w-32 h-24 bg-gray-300 flex-shrink-0 overflow-hidden rounded-l-lg">
+        <div className="relative w-32 h-24 bg-gray-300 flex-shrink-0 overflow-hidden rounded-l-lg group">
           <img
             src={`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`}
             alt={video.title || "Video thumbnail"}
@@ -25,6 +27,21 @@ export default function VideoCard({ videoId, video, onDelete }: VideoCardProps) 
                 "https://via.placeholder.com/128x72.png?text=No+Thumb")
             }
           />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(videoId);
+            }}
+            className={`absolute top-1 right-1 p-1 rounded-full transition-all ${
+              isFavorite
+                ? "bg-yellow-400 text-yellow-900 opacity-100"
+                : "bg-black bg-opacity-40 text-white opacity-70 group-hover:opacity-100"
+            } hover:scale-110`}
+            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <FiStar size={14} className={isFavorite ? "fill-current" : ""} />
+          </button>
           {video.duration ? (
             <div className="absolute bottom-0.5 right-0.5 bg-black bg-opacity-75 text-white text-[10px] px-1 py-0.5 rounded-sm">
               {formatTime(video.duration)}

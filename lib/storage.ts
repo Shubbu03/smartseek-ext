@@ -53,3 +53,30 @@ export async function deleteVideo(videoId: string): Promise<void> {
     await chrome.storage.local.set({ [STORAGE_KEY]: all });
   }
 }
+
+export async function toggleFavorite(videoId: string): Promise<void> {
+  try {
+    const data = await chrome.storage.local.get(STORAGE_KEY);
+    const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
+
+    if (all[videoId]) {
+      all[videoId] = {
+        ...all[videoId],
+        isFavorite: !all[videoId].isFavorite,
+      };
+      await chrome.storage.local.set({ [STORAGE_KEY]: all });
+    }
+  } catch (error) {
+    console.error("[SmartSeek] Error toggling favorite:", error);
+    throw error;
+  }
+}
+
+export async function deleteAllVideos(): Promise<void> {
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY]: {} });
+  } catch (error) {
+    console.error("[SmartSeek] Error deleting all videos:", error);
+    throw error;
+  }
+}

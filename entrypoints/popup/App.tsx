@@ -3,6 +3,7 @@ import { useVideos } from "./hooks/useVideos";
 import { useVideoFiltering } from "./hooks/useVideoFiltering";
 import { SortOption, VideoViewType } from "./types";
 import { getSettings } from "../../lib/settings";
+import { toggleFavorite } from "../../lib/storage";
 import Header from "./components/Header";
 import SettingsView from "./components/SettingsView";
 import SearchBar from "./components/SearchBar";
@@ -21,6 +22,9 @@ export default function App() {
   useEffect(() => {
     getSettings().then((settings) => {
       setIsMusicToggleEnabled(settings.saveMusicVideosOnly);
+      if (settings.defaultView) {
+        setViewType(settings.defaultView);
+      }
     });
 
     const listener = (changes: any, areaName: string) => {
@@ -28,6 +32,9 @@ export default function App() {
         const newSettings = changes.smartseek_settings.newValue;
         if (newSettings) {
           setIsMusicToggleEnabled(newSettings.saveMusicVideosOnly || false);
+          if (newSettings.defaultView) {
+            setViewType(newSettings.defaultView);
+          }
         }
       }
     };
@@ -52,6 +59,19 @@ export default function App() {
     if (!newVisibility) {
       setSearchTerm("");
       setSortOrder("default");
+    }
+  };
+
+  const handleToggleFavorite = async (videoId: string) => {
+    try {
+      await toggleFavorite(videoId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("Extension context invalidated")) {
+        alert("Extension was reloaded. Please refresh the extension and try again.");
+        return;
+      }
+      console.error("[SmartSeek] Error toggling favorite:", error);
     }
   };
 
@@ -81,6 +101,7 @@ export default function App() {
             onSearchToggle={handleSearchIconClick}
             onViewChange={setViewType}
             onDeleteVideo={handleDeleteVideo}
+            onToggleFavorite={handleToggleFavorite}
           />
 
           <div className="p-3 text-center text-xs text-[#313536] border-t border-[#e5e7eb]">

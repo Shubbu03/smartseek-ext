@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { VideoProgress } from "@/model/VideoProgress";
-import { FiClock, FiSearch, FiX, FiMusic, FiChevronDown } from "react-icons/fi";
+import { FiClock, FiSearch, FiX, FiMusic, FiChevronDown, FiStar } from "react-icons/fi";
 import { VideoViewType } from "../types";
 import VideoCard from "./VideoCard";
 import EmptyState from "./EmptyState";
@@ -14,6 +14,7 @@ type VideoListProps = {
   onSearchToggle: () => void;
   onViewChange: (view: VideoViewType) => void;
   onDeleteVideo: (videoId: string, videoTitle?: string) => void;
+  onToggleFavorite: (videoId: string) => void;
 };
 
 export default function VideoList({
@@ -25,6 +26,7 @@ export default function VideoList({
   onSearchToggle,
   onViewChange,
   onDeleteVideo,
+  onToggleFavorite,
 }: VideoListProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,19 +52,38 @@ export default function VideoList({
   const options: { value: VideoViewType; label: string }[] = [
     { value: "recent", label: "Recent Saves" },
     { value: "music", label: "Music Videos" },
+    { value: "favourites", label: "Favourites" },
   ];
 
-  const currentLabel = viewType === "music" ? "Music Videos" : "Recent Saves";
+  const getViewLabel = (view: VideoViewType): string => {
+    switch (view) {
+      case "music":
+        return "Music Videos";
+      case "favourites":
+        return "Favourites";
+      default:
+        return "Recent Saves";
+    }
+  };
+
+  const getViewIcon = (view: VideoViewType) => {
+    switch (view) {
+      case "music":
+        return <FiMusic size={20} className="text-[#2d3133]" />;
+      case "favourites":
+        return <FiStar size={20} className="text-[#2d3133]" />;
+      default:
+        return <FiClock size={20} className="text-[#2d3133]" />;
+    }
+  };
+
+  const currentLabel = getViewLabel(viewType);
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          {viewType === "music" ? (
-            <FiMusic size={20} className="text-[#2d3133]" />
-          ) : (
-            <FiClock size={20} className="text-[#2d3133]" />
-          )}
+          {getViewIcon(viewType)}
           {!isSearchVisible && !searchTerm ? (
             <div className="relative" ref={dropdownRef}>
               <button
@@ -133,6 +154,7 @@ export default function VideoList({
               videoId={id}
               video={video}
               onDelete={onDeleteVideo}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </ul>

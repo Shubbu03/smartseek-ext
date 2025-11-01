@@ -1,11 +1,13 @@
 const SETTINGS_KEY = "smartseek_settings";
 
 export type Settings = {
-    saveMusicVideosOnly: boolean;
+  saveMusicVideosOnly: boolean;
+  defaultView?: "recent" | "music" | "favourites";
 };
 
 const DEFAULT_SETTINGS: Settings = {
-    saveMusicVideosOnly: false,
+  saveMusicVideosOnly: false,
+  defaultView: "recent",
 };
 
 export async function getSettings(): Promise<Settings> {
