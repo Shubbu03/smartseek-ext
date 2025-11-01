@@ -188,6 +188,7 @@ function trackProgress(video: HTMLVideoElement, videoId: string) {
       const progressData = {
         videoId,
         lastWatched: Math.floor(video.currentTime),
+        duration: Math.floor(video.duration),
         updatedAt: new Date().toISOString(),
         title: document.title,
       };
@@ -280,12 +281,16 @@ function createManualSaveButtonElement(
     try {
       const currentTime = Math.floor(currentVideoElement.currentTime);
       const title = document.title;
+      const duration = currentVideoElement.duration
+        ? Math.floor(currentVideoElement.duration)
+        : undefined;
 
       showProcessingState();
 
       await saveTimestamp({
         videoId: currentVideoId,
         lastWatched: currentTime,
+        duration: duration, // Capture video duration
         updatedAt: new Date().toISOString(),
         title: title,
       });
