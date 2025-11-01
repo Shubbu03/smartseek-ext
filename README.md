@@ -4,11 +4,22 @@ SmartSeek is a Chrome extension that **automatically remembers** where you left 
 
 ## ✨ Features
 
+### Core Functionality
 - 🔁 Auto-saves video progress every few seconds
 - 📌 Remembers timestamps **without relying on YouTube history**
 - 🧠 Smart resume — picks up where you left off when revisiting
 - 🧭 Clean popup UI showing saved videos and links to resume
 - 🧼 Automatic cleanup of old videos (after 45 days)
+- 📊 Visual progress indicators with percentage and time remaining
+
+### v2 Features
+- ⭐ **Favorites System** — Star your favorite videos for quick access
+- 🎵 **Music Video Detection** — Smart detection and separate filtering for music videos
+- 🔍 **View Filtering** — Switch between Recent Saves, Music Videos, and Favourites
+- ⚙️ **Enhanced Settings** — Customize default view and preferences
+- 🗑️ **Bulk Management** — Delete all videos at once (with safety confirmations)
+- 🔄 **Smart Sorting** — Sort by title, progress (most/least watched), or default
+- 🔎 **Search Functionality** — Quickly find videos by title
 
 ## 🚀 How It Works
 
@@ -17,12 +28,21 @@ SmartSeek is a Chrome extension that **automatically remembers** where you left 
 3. It tracks your progress and saves it locally 💾
 4. When you open the same video again, it resumes from your last watched timestamp 🎯
 
+### Using v2 Features
+
+- **Star Videos**: Click the star icon on any video thumbnail to add it to favorites
+- **Filter Views**: Use the dropdown next to the view title to switch between Recent Saves, Music Videos, and Favourites
+- **Music Detection**: Enable "Save Music Videos" in settings to save only music videos, or keep it off to save all videos
+- **Customize Default View**: Set your preferred view (Recent/Music/Favourites) in Settings → Default View
+
 ## 🧪 Tech Stack
 
 - [WXT](https://wxt.dev) for modern Web Extension dev
 - TypeScript + React (for popup UI)
 - Tailwind CSS (for styling)
+- React Icons (for consistent iconography)
 - Chrome Extension Manifest v3
+- Chrome Storage API (for local data persistence)
 
 ## 🛠 Installation (for local development)
 
