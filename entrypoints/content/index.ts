@@ -1,9 +1,13 @@
 import { saveTimestamp, getTimestamp } from "~/lib/storage";
+import { getSettings } from "~/lib/settings";
+import { isMusicVideo } from "~/lib/musicDetection";
 import type { ContentScriptContext } from "#imports";
 
 let progressIntervalId: NodeJS.Timeout | number | null = null;
 const MANUAL_SAVE_BUTTON_ID = "smartseek-manual-save-button";
 let fullscreenListenerAdded = false;
+let cachedVideoElement: HTMLVideoElement | null = null;
+let cachedVideoId: string | null = null;
 
 export default defineContentScript({
   matches: ["*://*.youtube.com/*"],
@@ -16,6 +20,12 @@ export default defineContentScript({
         progressIntervalId = null;
       }
       initSmartSeek();
+    });
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes.smartseek_settings) {
+        updateButtonVisibilityOnSettingsChange();
+      }
     });
 
     initSmartSeek();
@@ -107,6 +117,9 @@ async function initSmartSeek() {
 
   removeManualSaveButton();
 
+  cachedVideoElement = null;
+  cachedVideoId = null;
+
   const videoId = getVideoId();
   if (!videoId) {
     return;
@@ -114,6 +127,9 @@ async function initSmartSeek() {
 
   try {
     const video = await waitForVideo();
+
+    cachedVideoElement = video;
+    cachedVideoId = videoId;
 
     await setupManualSaveButton(video, videoId);
     await restoreProgress(video, videoId);
@@ -129,6 +145,8 @@ async function initSmartSeek() {
       clearInterval(progressIntervalId);
       progressIntervalId = null;
     }
+    cachedVideoElement = null;
+    cachedVideoId = null;
   }
 }
 
@@ -163,7 +181,7 @@ function trackProgress(video: HTMLVideoElement, videoId: string) {
     );
   }
 
-  progressIntervalId = window.setInterval(() => {
+  progressIntervalId = window.setInterval(async () => {
     const currentPageVideoId = getVideoId();
     if (currentPageVideoId !== videoId) {
       if (progressIntervalId !== null) clearInterval(progressIntervalId);
@@ -190,14 +208,26 @@ function trackProgress(video: HTMLVideoElement, videoId: string) {
     }
 
     if (video.duration > 0 && !video.paused) {
-      const progressData = {
-        videoId,
-        lastWatched: Math.floor(video.currentTime),
-        duration: Math.floor(video.duration),
-        updatedAt: new Date().toISOString(),
-        title: document.title,
-      };
-      saveTimestamp(progressData);
+      try {
+        const settings = await getSettings();
+        const isMusic = await isMusicVideo();
+
+        if (isMusic && !settings.saveMusicVideosOnly) {
+          return;
+        }
+
+        const progressData = {
+          videoId,
+          lastWatched: Math.floor(video.currentTime),
+          duration: Math.floor(video.duration),
+          updatedAt: new Date().toISOString(),
+          title: document.title,
+          isMusic: isMusic,
+        };
+        saveTimestamp(progressData);
+      } catch (error) {
+        console.error("[SmartSeek] Error checking settings or saving:", error);
+      }
     }
   }, 5000);
 }
@@ -284,6 +314,20 @@ function createManualSaveButtonElement(
     }
 
     try {
+      const settings = await getSettings();
+      const isMusicVideoCheck = await isMusicVideo();
+
+      if (isMusicVideoCheck && !settings.saveMusicVideosOnly) {
+        showErrorState();
+        const originalTitle = button.getAttribute("title");
+        button.setAttribute("title", "Music videos are disabled. Enable in settings to save music videos.");
+        setTimeout(() => {
+          button.setAttribute("title", originalTitle || "Save video timestamp");
+          showErrorState();
+        }, 2000);
+        return;
+      }
+
       const currentTime = Math.floor(currentVideoElement.currentTime);
       const title = document.title;
       const duration = currentVideoElement.duration
@@ -295,9 +339,10 @@ function createManualSaveButtonElement(
       await saveTimestamp({
         videoId: currentVideoId,
         lastWatched: currentTime,
-        duration: duration, // Capture video duration
+        duration: duration,
         updatedAt: new Date().toISOString(),
         title: title,
+        isMusic: isMusicVideoCheck,
       });
 
       showSuccessState();
@@ -375,6 +420,13 @@ async function setupManualSaveButton(
   videoId: string
 ) {
   removeManualSaveButton();
+
+  const settings = await getSettings();
+  const isMusic = await isMusicVideo();
+
+  if (isMusic && !settings.saveMusicVideosOnly) {
+    return;
+  }
 
   const button = createManualSaveButtonElement(videoElement, videoId);
 
@@ -485,6 +537,43 @@ function removeManualSaveButton() {
   const existingButton = document.getElementById(MANUAL_SAVE_BUTTON_ID);
   if (existingButton) {
     existingButton.remove();
+  }
+}
+
+async function updateButtonVisibilityOnSettingsChange() {
+  const videoId = getVideoId();
+  if (!videoId) {
+    return;
+  }
+
+  try {
+    let video: HTMLVideoElement | null = null;
+    if (cachedVideoElement && cachedVideoId === videoId && document.body.contains(cachedVideoElement)) {
+      video = cachedVideoElement;
+    } else {
+      video = await waitForVideo();
+      cachedVideoElement = video;
+      cachedVideoId = videoId;
+    }
+
+    const settings = await getSettings();
+    const isMusic = await isMusicVideo();
+    const existingButton = document.getElementById(MANUAL_SAVE_BUTTON_ID);
+
+    if (isMusic && !settings.saveMusicVideosOnly) {
+      if (existingButton) {
+        removeManualSaveButton();
+      }
+      return;
+    }
+
+    if (!existingButton) {
+      await setupManualSaveButton(video, videoId);
+    }
+  } catch (error) {
+    console.error("[SmartSeek] Error updating button visibility on settings change:", error);
+    cachedVideoElement = null;
+    cachedVideoId = null;
   }
 }
 

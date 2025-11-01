@@ -4,4 +4,5 @@ export type VideoProgress = {
   lastWatched: number;
   duration?: number;
   updatedAt: string;
+  isMusic?: boolean;
 };
