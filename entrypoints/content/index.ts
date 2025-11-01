@@ -119,6 +119,11 @@ async function initSmartSeek() {
     await restoreProgress(video, videoId);
     trackProgress(video, videoId);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("Extension context invalidated")) {
+      console.warn("[SmartSeek] Extension context invalidated. Please refresh the page.");
+      return;
+    }
     console.error("[SmartSeek] Error initializing smart seek:", error);
     if (progressIntervalId !== null) {
       clearInterval(progressIntervalId);
@@ -297,6 +302,12 @@ function createManualSaveButtonElement(
 
       showSuccessState();
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes("Extension context invalidated")) {
+        console.warn("[SmartSeek] Extension context invalidated during manual save. Please refresh the page.");
+        showErrorState();
+        return;
+      }
       console.error("[SmartSeek] Error during manual save:", err);
       showErrorState();
     }
