@@ -4,25 +4,29 @@ import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CircleNotchIcon } from "@phosphor-icons/react/dist/csr/CircleNotch";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { LightningIcon } from "@phosphor-icons/react/dist/csr/Lightning";
+import type { PopupView } from "../types";
 
 type HeaderProps = {
-  currentView: "home" | "settings";
+  currentView: PopupView;
+  setup?: boolean;
   mode: "automatic" | "selected";
   disabled: boolean;
   saving: boolean;
-  onViewChange: (view: "home" | "settings") => void;
+  onViewChange: (view: PopupView) => void;
   onModeChange: (mode: "automatic" | "selected") => void;
 };
 
-export default function Header({ currentView, mode, disabled, saving, onViewChange, onModeChange }: HeaderProps) {
+export default function Header({ currentView, setup = false, mode, disabled, saving, onViewChange, onModeChange }: HeaderProps) {
+  const title = { home: "", settings: "Settings", support: "Help & recovery", privacy: "Privacy", "whats-new": "What’s new" }[currentView];
+  const backTo = currentView === "settings" ? "home" : "settings";
   return (
     <header className="popup-header">
-      {currentView === "home" ? (
+      {currentView === "home" || setup ? (
         <div className="brand"><span className="brand-mark"><BookmarkSimpleIcon aria-hidden="true" /></span><span>smartseek</span></div>
       ) : (
-        <div className="header-back"><button className="icon-button" aria-label="Back to library" onClick={() => onViewChange("home")}><ArrowLeftIcon aria-hidden="true" /></button><span>Settings</span></div>
+        <div className="header-back"><button className="icon-button" aria-label={backTo === "home" ? "Back to library" : "Back to settings"} onClick={() => onViewChange(backTo)}><ArrowLeftIcon aria-hidden="true" /></button><span>{title}</span></div>
       )}
-      {currentView === "home" ? (
+      {setup ? null : currentView === "home" ? (
         <div className="header-actions">
           <label className="mode-picker" title="Choose which videos SmartSeek remembers">
             {saving ? <CircleNotchIcon className="spin" aria-hidden="true" /> : <LightningIcon aria-hidden="true" />}

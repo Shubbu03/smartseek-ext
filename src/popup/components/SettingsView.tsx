@@ -4,16 +4,20 @@ import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/csr/ArrowSquareOu
 import { ChatCircleIcon } from "@phosphor-icons/react/dist/csr/ChatCircle";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
-import { isRetentionDays, RETENTION_DAYS } from "@/settings/types";
+import { LifebuoyIcon } from "@phosphor-icons/react/dist/csr/Lifebuoy";
+import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
+import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
+import { isDensity, isRetentionDays, isTheme, RETENTION_DAYS } from "@/settings/types";
 import type { Settings } from "@/settings/types";
 import { isViewType, VIEW_LABELS } from "../types";
 import SettingToggle from "./SettingToggle";
 import LibraryDataTools from "./LibraryDataTools";
 import type { ImportSummary } from "@/shared/libraryData";
+import type { PopupView } from "../types";
 
-type SettingsViewProps = { settings: Settings; saving: boolean; savedCount: number; onChange: (patch: Partial<Settings>) => Promise<boolean>; onClear: () => void; onImported: (summary: ImportSummary) => Promise<void> };
+type SettingsViewProps = { settings: Settings; saving: boolean; savedCount: number; onChange: (patch: Partial<Settings>) => Promise<boolean>; onClear: () => void; onImported: (summary: ImportSummary) => Promise<void>; onNavigate: (view: PopupView) => void };
 
-export default function SettingsView({ settings, saving, savedCount, onChange, onClear, onImported }: SettingsViewProps) {
+export default function SettingsView({ settings, saving, savedCount, onChange, onClear, onImported, onNavigate }: SettingsViewProps) {
   const autoDelete = settings.retentionDays !== undefined && settings.retentionDays !== null;
   return (
     <main className="popup-content settings-content" id="main-content">
@@ -58,9 +62,23 @@ export default function SettingsView({ settings, saving, savedCount, onChange, o
         <LibraryDataTools disabled={saving} onImported={onImported} />
         <button className="clear-library-button" onClick={onClear} disabled={saving}><TrashIcon aria-hidden="true" /><span>Clear saved videos</span><span className="muted">{savedCount}</span></button>
       </section>
+      <section className="settings-section" aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className="section-heading">Appearance</h2>
+        <div className="settings-card">
+          <div className="setting-block"><label htmlFor="theme">Theme</label><p>Keep Cobalt light, go dark, or follow your device.</p>
+            <div className="setting-select"><select id="theme" disabled={saving} value={settings.theme ?? "system"} onChange={(event) => { if (isTheme(event.target.value)) void onChange({ theme: event.target.value }); }}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select><CaretDownIcon aria-hidden="true" /></div>
+          </div>
+          <div className="setting-block"><label htmlFor="density">Video list density</label><p>Choose a little more room or a little more library.</p>
+            <div className="setting-select"><select id="density" disabled={saving} value={settings.density ?? "comfortable"} onChange={(event) => { if (isDensity(event.target.value)) void onChange({ density: event.target.value }); }}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select><CaretDownIcon aria-hidden="true" /></div>
+          </div>
+        </div>
+      </section>
       <section className="settings-section about-section" aria-labelledby="about-heading">
         <h2 id="about-heading" className="section-heading">A little about SmartSeek</h2>
         <div className="settings-card">
+          <button className="support-link settings-navigation" onClick={() => onNavigate("support")}><LifebuoyIcon aria-hidden="true" /><span>Help, report an issue & recovery</span><CaretRightIcon aria-hidden="true" /></button>
+          <button className="support-link settings-navigation" onClick={() => onNavigate("whats-new")}><SparkleIcon aria-hidden="true" /><span>What’s new in v3</span><CaretRightIcon aria-hidden="true" /></button>
+          <button className="support-link settings-navigation" onClick={() => onNavigate("privacy")}><ShieldCheckIcon aria-hidden="true" /><span>Your data & privacy</span><CaretRightIcon aria-hidden="true" /></button>
           <a href="https://forms.gle/6JQwnkcHYBHN5Fz9A" target="_blank" rel="noreferrer" className="support-link"><ChatCircleIcon aria-hidden="true" /><span>Share feedback or an idea</span><ArrowSquareOutIcon aria-hidden="true" /></a>
           <a href="https://buymeacoffee.com/shubbu" target="_blank" rel="noreferrer" className="support-link"><CoffeeIcon aria-hidden="true" /><span>Support SmartSeek</span><ArrowSquareOutIcon aria-hidden="true" /></a>
         </div>

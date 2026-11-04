@@ -3,6 +3,10 @@ import type { Settings } from "@/settings/types";
 import type { CheckpointReply, PlaybackCheckpoint, SessionOpened } from "./playbackTypes";
 import { isImportPreview, isImportSummary, isRemovalReceipt, parseLibraryBackup } from "./libraryData";
 import type { ImportMode, ImportPreview, ImportSummary, LibraryBackup, RemovalReceipt, UndoResult } from "./libraryData";
+import { isExperience } from "./experienceTypes";
+import type { Experience } from "./experienceTypes";
+import { isDiagnostics, isRecoverySnapshot } from "./supportTypes";
+import type { Diagnostics, RecoverySnapshot } from "./supportTypes";
 
 import { copyProgress, copySettings, isPlaybackPolicy, isPosition, isRecord, isSettings, isVideoId, isVideoProgress } from "./validation";
 export { copyProgress, copySettings, isRecord, isSettings, isVideoId, isVideoProgress, normalizeStoredSettings } from "./validation";
@@ -14,9 +18,14 @@ export type MigrationStatus = {
   ready: true;
   migratedAt: string;
   warnings: string[];
+  installation?: "new" | "upgrade";
 };
 
 export type LibraryCommand =
+  | { type: "experience.get" }
+  | { type: "experience.complete"; saveMode?: "automatic" | "selected" }
+  | { type: "diagnostics.get" }
+  | { type: "recovery.export" }
   | { type: "library.list" }
   | { type: "library.get"; videoId: string }
   | { type: "progress.save"; video: VideoProgress }
@@ -40,6 +49,10 @@ export type LibraryCommand =
   | { type: "session.close"; sessionId: string };
 
 export type LibraryReplies = {
+  "experience.get": Experience;
+  "experience.complete": Experience;
+  "diagnostics.get": Diagnostics;
+  "recovery.export": RecoverySnapshot;
   "library.list": Record<string, VideoProgress>;
   "library.get": VideoProgress | null;
   "progress.save": null;
@@ -70,12 +83,21 @@ export type LibraryReply =
 export function isMigrationStatus(value: unknown): value is MigrationStatus {
   return isRecord(value) && value.version === 3 && value.ready === true &&
     typeof value.migratedAt === "string" && Number.isFinite(Date.parse(value.migratedAt)) &&
-    Array.isArray(value.warnings) && value.warnings.every((warning) => typeof warning === "string");
+    Array.isArray(value.warnings) && value.warnings.every((warning) => typeof warning === "string") &&
+    (value.installation === undefined || value.installation === "new" || value.installation === "upgrade");
 }
 
 export function parseCommand(value: unknown): LibraryCommand {
   if (!isRecord(value)) throw new Error("Invalid library command.");
   switch (value.type) {
+    case "experience.complete":
+      if (value.saveMode === undefined || value.saveMode === "automatic" || value.saveMode === "selected") {
+        return { type: value.type, ...(value.saveMode !== undefined ? { saveMode: value.saveMode } : {}) };
+      }
+      break;
+    case "experience.get":
+    case "diagnostics.get":
+    case "recovery.export":
     case "library.list":
     case "videos.clear":
     case "library.export":
@@ -148,6 +170,13 @@ export function parseCommand(value: unknown): LibraryCommand {
 
 function isResult(type: LibraryCommand["type"], value: unknown): boolean {
   switch (type) {
+    case "experience.get":
+    case "experience.complete":
+      return isExperience(value);
+    case "diagnostics.get":
+      return isDiagnostics(value);
+    case "recovery.export":
+      return isRecoverySnapshot(value);
     case "library.list":
       return isRecord(value) && Object.entries(value).every(([id, video]) =>
         isVideoProgress(video) && video.videoId === id);

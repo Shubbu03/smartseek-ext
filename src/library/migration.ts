@@ -66,7 +66,8 @@ export async function initializeLibrary(): Promise<MigrationStatus> {
     warnings.push("Invalid legacy settings were replaced with defaults; original settings remain in backup.");
   }
   records[STORAGE_KEYS.settings] = normalizedSettings ?? DEFAULT_SETTINGS;
-  const meta: MigrationStatus = { version: 3, ready: true, migratedAt: backup.capturedAt, warnings };
+  const meta: MigrationStatus = { version: 3, ready: true, migratedAt: backup.capturedAt, warnings,
+    installation: Object.keys(backup.legacy).length ? "upgrade" : "new" };
   const planned = { ...records, [STORAGE_KEYS.backup]: backup, [STORAGE_KEYS.meta]: meta };
   const used = await chrome.storage.local.getBytesInUse(null);
   const extra = Object.entries(planned).reduce((total, [key, value]) =>

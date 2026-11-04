@@ -9,6 +9,8 @@ import { applyPreparedImport, cancelPreparedImport, exportLibraryBackup, prepare
 import { clearRemovalReceipts, recoverDataMutation } from "./dataMutation";
 import { dismissRemoval, pendingRemoval, removeWithUndo, undoRemoval } from "./removals";
 import { DATA_KEYS } from "./dataKeys";
+import { completeExperience, readExperience } from "./experience";
+import { collectDiagnostics, exportRecoverySnapshot } from "@/support/diagnostics";
 
 const CLEANUP_BATCH_SIZE = 100;
 
@@ -19,9 +21,19 @@ export function createLibraryCoordinator() {
   let status: MigrationStatus | undefined;
 
   async function run(command: LibraryCommand, source?: PlaybackSource): Promise<LibraryReplies[keyof LibraryReplies]> {
+    if (command.type === "diagnostics.get") return collectDiagnostics();
+    if (command.type === "recovery.export") return exportRecoverySnapshot();
     status ??= await initializeLibrary();
     await recoverDataMutation();
     switch (command.type) {
+      case "experience.get":
+        return readExperience(status);
+      case "experience.complete": {
+        const experience = await readExperience(status);
+        if (experience.step === "ready") return experience;
+        if (experience.step === "welcome" && command.saveMode === undefined) throw new Error("Choose a saving mode to finish setup.");
+        return completeExperience(experience.step === "welcome" ? command.saveMode : undefined);
+      }
       case "library.get":
         return readVideo(command.videoId);
       case "library.list":

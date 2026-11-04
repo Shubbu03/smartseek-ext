@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   meta: `${PREFIX}meta`,
   backup: `${PREFIX}legacy-backup`,
   settings: `${PREFIX}settings`,
+  experience: "smartseek:experience:v3",
   progressPrefix: `${PREFIX}progress:`,
   preferencesPrefix: `${PREFIX}preferences:`,
   progress: (videoId: string) => `${PREFIX}progress:${videoId}`,

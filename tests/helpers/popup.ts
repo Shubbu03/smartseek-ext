@@ -4,9 +4,11 @@ import { vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import App from "@/popup/App";
 import type { PlaybackStatus } from "@/playback/playerControl";
+import { STORAGE_KEYS } from "@/library/keys";
 
-export async function renderPopup(activeVideo?: PlaybackStatus) {
-  const host = new Window({ url: "chrome-extension://test-extension-id/popup.html" });
+export async function renderPopup(activeVideo?: PlaybackStatus, options: { showIntro?: boolean; colorScheme?: "dark" | "light" } = {}) {
+  if (!options.showIntro) await fakeBrowser.storage.local.set({ [STORAGE_KEYS.experience]: { version: 3, completedAt: new Date().toISOString() } });
+  const host = new Window({ url: "chrome-extension://test-extension-id/popup.html", settings: { device: { prefersColorScheme: options.colorScheme ?? "light" } } });
   const originals = new Map<string, PropertyDescriptor | undefined>();
   const globals: Record<string, unknown> = {
     window: host, document: host.document, navigator: host.navigator,
@@ -68,6 +70,14 @@ export async function renderPopup(activeVideo?: PlaybackStatus) {
       await act(async () => {
         const input = get('input[type="search"]');
         Object.getOwnPropertyDescriptor(host.HTMLInputElement.prototype, "value")!.set!.call(input, value);
+        input.dispatchEvent(new host.Event("input", { bubbles: true }));
+        await settle();
+      });
+    },
+    async type(selector: string, value: string) {
+      await act(async () => {
+        const input = get(selector);
+        Object.getOwnPropertyDescriptor(host.HTMLTextAreaElement.prototype, "value")!.set!.call(input, value);
         input.dispatchEvent(new host.Event("input", { bubbles: true }));
         await settle();
       });

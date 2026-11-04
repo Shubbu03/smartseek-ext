@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
-import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowClockwise";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { ArrowUUpLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowUUpLeft";
@@ -9,10 +8,12 @@ import { deleteAllVideos, deleteVideo, setFavorite, setSelected } from "@/librar
 import { useSettings } from "./hooks/useSettings";
 import { useVideos } from "./hooks/useVideos";
 import { useRemoval } from "./hooks/useRemoval";
+import { useExperience } from "./hooks/useExperience";
+import { useAppearance } from "./hooks/useAppearance";
 import type { ImportSummary } from "@/shared/libraryData";
 import { useVideoFiltering } from "./hooks/useVideoFiltering";
 import { SORT_LABELS, VIEW_LABELS } from "./types";
-import type { SortOption, VideoViewType } from "./types";
+import type { PopupView, SortOption, VideoViewType } from "./types";
 import Header from "./components/Header";
 import SettingsView from "./components/SettingsView";
 import SearchBar from "./components/SearchBar";
@@ -21,17 +22,24 @@ import VideoList from "./components/VideoList";
 import CurrentVideo from "./components/CurrentVideo";
 import EmptyState from "./components/EmptyState";
 import ConfirmDialog from "./components/ConfirmDialog";
+import Onboarding from "./components/Onboarding";
+import WhatsNew from "./components/WhatsNew";
+import LibraryRecovery from "./components/LibraryRecovery";
+import SupportView from "./components/SupportView";
+import PrivacyView from "./components/PrivacyView";
 
 function LoadingLibrary() {
   return <main className="popup-content library-loading" aria-busy="true" aria-label="Loading your saved library">
-    <p className="sr-only" role="status">Loading your saved videos…</p>
+    <p className="preparing-copy" role="status">Preparing your library and checking saved data…</p>
     <div className="skeleton skeleton-heading" /><div className="skeleton skeleton-current" />
     {[0, 1, 2].map((key) => <div key={key} className="skeleton-row" aria-hidden="true"><div className="skeleton skeleton-thumb" /><div><div className="skeleton skeleton-line" /><div className="skeleton skeleton-line short" /></div></div>)}
   </main>;
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<"home" | "settings">("home");
+  const [currentView, setCurrentView] = useState<PopupView>("home");
+  const [setupReady, setSetupReady] = useState(false);
+  const [setupMode, setSetupMode] = useState<"automatic" | "selected" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOption>("default");
   const [viewType, setViewType] = useState<VideoViewType>("recent");
@@ -40,9 +48,13 @@ export default function App() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const retryingRef = useRef(false);
   const preferences = useSettings();
   const library = useVideos();
   const removal = useRemoval();
+  const experience = useExperience();
+  useAppearance(preferences.settings);
   const defaultView = preferences.settings?.defaultView;
   const videos = useVideoFiltering(library.videos, searchTerm, sortOrder, viewType);
 
@@ -89,30 +101,43 @@ export default function App() {
     await Promise.all([library.reload(), preferences.reload()]);
     setNotice(`Import complete. ${summary.total} ${summary.total === 1 ? "video" : "videos"} in your library.`);
   };
-  const retry = () => { void library.reload(); void preferences.reload(); };
-  const error = library.error || preferences.error;
+  const retry = async () => {
+    if (retryingRef.current) return;
+    retryingRef.current = true; setRetrying(true);
+    try { await Promise.all([library.reload(), preferences.reload(), experience.reload()]); }
+    finally { retryingRef.current = false; setRetrying(false); }
+  };
+  const error = library.error || preferences.error || experience.error;
   const saveError = preferences.saveError || actionError || removal.error;
+  const onboarding = experience.experience?.step === "welcome" || setupReady || (experience.saving && setupMode !== null);
+  const upgrading = experience.experience?.step === "upgrade";
+  const utilityView = currentView === "support" || currentView === "privacy" || currentView === "whats-new";
+  const setup = !error && (onboarding || upgrading) && !utilityView;
+  const loading = preferences.loading || library.loading || experience.loading;
+  const focusKey = utilityView ? currentView : loading ? "loading" : error ? "error" : onboarding ? setupReady ? "setup-ready" : "welcome" : upgrading ? "upgrade" : currentView;
+  useEffect(() => {
+    const heading = document.querySelector<HTMLElement>("main h1");
+    if (heading) { heading.tabIndex = -1; heading.focus(); }
+  }, [focusKey]);
+  const finishSetup = async (mode: "automatic" | "selected") => {
+    setSetupMode(mode);
+    if (await experience.complete(mode)) { setSetupReady(true); await preferences.reload(); }
+  };
 
-  return (
-    <div className="smartseek-app h-150 w-100">
-      <Header currentView={currentView} mode={preferences.settings?.saveMode ?? "automatic"}
-        disabled={preferences.loading || !!preferences.error} saving={preferences.saving} onViewChange={setCurrentView}
-        onModeChange={(saveMode) => { void preferences.update({ saveMode }); }} />
-      {saveError && <div className="notice-banner error-banner" role="alert"><WarningCircleIcon aria-hidden="true" /><p>{saveError}</p>
-        <button className="icon-button" aria-label="Dismiss error" onClick={() => { setActionError(null); preferences.dismissSaveError(); removal.dismissError(); }}><XIcon aria-hidden="true" /></button></div>}
-
-      {preferences.loading || library.loading ? <LoadingLibrary /> : error || !preferences.settings ? (
-        <main className="popup-content load-error"><div className="empty-symbol"><WarningCircleIcon aria-hidden="true" /></div>
-          <h1>Couldn’t load SmartSeek</h1><p role="alert">{error || "Your preferences could not be loaded."}</p>
-          <button className="button button-primary" onClick={retry}><ArrowClockwiseIcon aria-hidden="true" />Try again</button></main>
-      ) : currentView === "settings" ? (
-        <SettingsView settings={preferences.settings} saving={preferences.saving} savedCount={allVideos.length}
-          onChange={preferences.update} onClear={() => setConfirmation(true)} onImported={imported} />
-      ) : (
-        <main className="popup-content" id="main-content">
+  function renderContent() {
+    if (currentView === "support") return <SupportView />;
+    if (currentView === "privacy") return <PrivacyView />;
+    if (currentView === "whats-new") return <WhatsNew onContinue={() => setCurrentView("home")} />;
+    if (loading) return <LoadingLibrary />;
+    if (error || !preferences.settings) return <LibraryRecovery message={error || "Your preferences could not be loaded."} retrying={retrying} onRetry={() => { void retry(); }} onHelp={() => setCurrentView("support")} />;
+    if (onboarding) return <Onboarding ready={setupReady} initialMode={preferences.settings.saveMode ?? "automatic"} savedMode={setupMode ?? "automatic"} busy={experience.saving} error={experience.saveError} onSave={(mode) => { void finishSetup(mode); }} onContinue={() => setSetupReady(false)} />;
+    if (upgrading) return <WhatsNew returning busy={experience.saving} error={experience.saveError} onContinue={() => { void experience.complete(); }} />;
+    if (currentView === "settings") return <SettingsView settings={preferences.settings} saving={preferences.saving} savedCount={allVideos.length}
+      onChange={preferences.update} onClear={() => setConfirmation(true)} onImported={imported} onNavigate={setCurrentView} />;
+    return <main className="popup-content" id="main-content">
           <div className="page-heading"><h1>Continue watching</h1></div>
           <CurrentVideo />
-          {library.warnings.length > 0 && <details className="migration-notice"><summary>Some saved data needs attention ({library.warnings.length})</summary><ul>{library.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
+          {library.warnings.length > 0 && <details className="migration-notice"><summary>Some saved data needs attention ({library.warnings.length})</summary><p>Valid saves are available below. Original upgrade data is kept for recovery.</p><ul>{library.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><button className="text-button" onClick={() => setCurrentView("support")}>Get recovery help</button></details>}
           <SearchBar searchTerm={searchTerm} sortOrder={sortOrder} onSearchChange={setSearchTerm} onSortChange={setSortOrder} />
           <ViewDropdown viewType={viewType} counts={counts} onViewChange={setViewType} />
           <div className="list-meta"><span>{searchTerm ? `${videos.length} search ${videos.length === 1 ? "result" : "results"}` : `${videos.length} ${videos.length === 1 ? "video" : "videos"} · ${VIEW_LABELS[viewType]}`}</span><span>{SORT_LABELS[sortOrder]}</span></div>
@@ -122,8 +147,17 @@ export default function App() {
             onToggleSelection={(id) => { void videoAction(id, () => setSelected(id, !library.videos[id]?.isSelected)); }} />
             : <EmptyState view={viewType} searching={!!searchTerm} selectedMode={preferences.settings.saveMode === "selected"} libraryEmpty={allVideos.length === 0}
               onReset={() => { if (searchTerm) setSearchTerm(""); else setViewType("recent"); }} />}
-        </main>
-      )}
+        </main>;
+  }
+
+  return (
+    <div className="smartseek-app h-150 w-100">
+      <Header currentView={currentView} setup={setup} mode={preferences.settings?.saveMode ?? "automatic"}
+        disabled={preferences.loading || !!preferences.error} saving={preferences.saving} onViewChange={setCurrentView}
+        onModeChange={(saveMode) => { void preferences.update({ saveMode }); }} />
+      {saveError && <div className="notice-banner error-banner" role="alert"><WarningCircleIcon aria-hidden="true" /><p>{saveError}</p>
+        <button className="icon-button" aria-label="Dismiss error" onClick={() => { setActionError(null); preferences.dismissSaveError(); removal.dismissError(); }}><XIcon aria-hidden="true" /></button></div>}
+      {renderContent()}
 
       <footer className="popup-footer"><span><ShieldCheckIcon aria-hidden="true" />{preferences.saving ? "Saving preferences…" : "Stored on this device"}</span><span>{library.loading ? "Loading library…" : library.error ? "Library unavailable" : `${allVideos.length} saved${counts.favourites > 0 ? ` · ${counts.favourites} ${counts.favourites === 1 ? "favorite" : "favorites"}` : ""}`}</span></footer>
       {removal.receipt ? <div className="toast undo-toast" role="status"><span className="toast-message" title={removal.receipt.title}>Removed “{removal.receipt.title}”</span>

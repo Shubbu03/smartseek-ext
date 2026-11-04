@@ -1,6 +1,6 @@
 import type { VideoProgress } from "@/library/types";
 import type { Settings } from "@/settings/types";
-import { isRetentionDays } from "@/settings/types";
+import { isDensity, isRetentionDays, isTheme } from "@/settings/types";
 import type { PlaybackPolicy } from "./playbackTypes";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,7 +48,8 @@ export function isSettings(value: unknown): value is Settings {
     (value.saveMode === undefined || value.saveMode === "automatic" || value.saveMode === "selected") &&
     (value.autoResume === undefined || typeof value.autoResume === "boolean") &&
     (value.showSaveButton === undefined || typeof value.showSaveButton === "boolean") &&
-    (value.retentionDays === undefined || value.retentionDays === null || isRetentionDays(value.retentionDays));
+    (value.retentionDays === undefined || value.retentionDays === null || isRetentionDays(value.retentionDays)) &&
+    (value.theme === undefined || isTheme(value.theme)) && (value.density === undefined || isDensity(value.density));
 }
 
 export function copySettings(settings: Settings): Settings {
@@ -59,6 +60,8 @@ export function copySettings(settings: Settings): Settings {
     ...(settings.autoResume !== undefined ? { autoResume: settings.autoResume } : {}),
     ...(settings.showSaveButton !== undefined ? { showSaveButton: settings.showSaveButton } : {}),
     ...(settings.retentionDays !== undefined ? { retentionDays: settings.retentionDays } : {}),
+    ...(settings.theme !== undefined ? { theme: settings.theme } : {}),
+    ...(settings.density !== undefined ? { density: settings.density } : {}),
   };
 }
 

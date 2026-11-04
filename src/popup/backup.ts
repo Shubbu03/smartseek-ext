@@ -1,5 +1,6 @@
 import { MAX_BACKUP_BYTES, parseLibraryBackup } from "@/shared/libraryData";
 import type { LibraryBackup } from "@/shared/libraryData";
+import { downloadFile } from "./download";
 
 export async function readBackupFile(file: File): Promise<LibraryBackup> {
   if (file.size > MAX_BACKUP_BYTES) throw new Error("Choose a backup smaller than 10 MB.");
@@ -10,12 +11,5 @@ export async function readBackupFile(file: File): Promise<LibraryBackup> {
 }
 
 export function downloadBackup(backup: LibraryBackup): void {
-  const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `smartseek-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.append(link);
-  try { link.click(); }
-  finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  downloadFile(JSON.stringify(backup), `smartseek-backup-${new Date().toISOString().slice(0, 10)}.json`);
 }

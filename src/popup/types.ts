@@ -1,3 +1,5 @@
+export type PopupView = "home" | "settings" | "support" | "privacy" | "whats-new";
+
 export type SortOption =
     | "default"
     | "titleAsc"
