@@ -1,37 +1,32 @@
-import { saveTimestamp, getTimestamp } from "~/lib/storage";
-import { getSettings } from "~/lib/settings";
-import { isMusicVideo } from "~/lib/musicDetection";
+import { saveTimestamp, getTimestamp } from "@/library/storage";
+import { getSettings } from "@/settings/storage";
+import { isMusicVideo } from "@/youtube/musicDetection";
 import type { ContentScriptContext } from "#imports";
 
-let progressIntervalId: NodeJS.Timeout | number | null = null;
+let progressIntervalId: number | null = null;
 const MANUAL_SAVE_BUTTON_ID = "smartseek-manual-save-button";
 let fullscreenListenerAdded = false;
 let cachedVideoElement: HTMLVideoElement | null = null;
 let cachedVideoId: string | null = null;
 
-export default defineContentScript({
-  matches: ["*://*.youtube.com/*"],
-  runAt: "document_idle",
-  cssInjectionMode: "ui",
-  main: async (_ctx: ContentScriptContext) => {
-    observeUrlChange(() => {
-      if (progressIntervalId !== null) {
-        clearInterval(progressIntervalId);
-        progressIntervalId = null;
-      }
-      initSmartSeek();
-    });
-
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === "local" && changes.smartseek_settings) {
-        updateButtonVisibilityOnSettingsChange();
-      }
-    });
-
+export async function startTracking(_ctx: ContentScriptContext) {
+  observeUrlChange(() => {
+    if (progressIntervalId !== null) {
+      clearInterval(progressIntervalId);
+      progressIntervalId = null;
+    }
     initSmartSeek();
-    addFullscreenListener();
-  },
-});
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local" && changes.smartseek_settings) {
+      updateButtonVisibilityOnSettingsChange();
+    }
+  });
+
+  initSmartSeek();
+  addFullscreenListener();
+}
 
 function observeUrlChange(onChange: () => void) {
   let lastUrl = location.href;

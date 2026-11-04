@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useVideos } from "./hooks/useVideos";
 import { useVideoFiltering } from "./hooks/useVideoFiltering";
-import { SortOption, VideoViewType } from "./types";
-import { getSettings } from "../../lib/settings";
-import { toggleFavorite } from "../../lib/storage";
+import type { SortOption, VideoViewType } from "./types";
+import { getSettings } from "@/settings/storage";
+import { toggleFavorite } from "@/library/storage";
 import Header from "./components/Header";
 import SettingsView from "./components/SettingsView";
 import SearchBar from "./components/SearchBar";

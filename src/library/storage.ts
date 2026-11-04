@@ -1,7 +1,11 @@
-import { VideoProgress } from "../model/VideoProgress";
+import type { VideoProgress } from "./types";
 
 const STORAGE_KEY = "video_progress";
 const EXPIRATION_DAYS = 45;
+
+type VideoProgressStorage = {
+  [STORAGE_KEY]: Record<string, VideoProgress>;
+};
 
 function isExpired(dateStr: string): boolean {
   const updated = new Date(dateStr);
@@ -12,7 +16,7 @@ function isExpired(dateStr: string): boolean {
 }
 
 export async function cleanupOldTimestamps(): Promise<void> {
-  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
   const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
 
   const cleaned: Record<string, VideoProgress> = {};
@@ -28,7 +32,7 @@ export async function cleanupOldTimestamps(): Promise<void> {
 export async function saveTimestamp(video: VideoProgress): Promise<void> {
   await cleanupOldTimestamps();
 
-  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
   const all = data[STORAGE_KEY] || {};
   all[video.videoId] = video;
 
@@ -39,13 +43,13 @@ export async function getTimestamp(
   videoId: string
 ): Promise<VideoProgress | null> {
   await cleanupOldTimestamps();
-  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
   return data[STORAGE_KEY]?.[videoId] || null;
 }
 
 export async function deleteVideo(videoId: string): Promise<void> {
   await cleanupOldTimestamps();
-  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
   const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
 
   if (all[videoId]) {
@@ -56,7 +60,7 @@ export async function deleteVideo(videoId: string): Promise<void> {
 
 export async function toggleFavorite(videoId: string): Promise<void> {
   try {
-    const data = await chrome.storage.local.get(STORAGE_KEY);
+    const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
     const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
 
     if (all[videoId]) {

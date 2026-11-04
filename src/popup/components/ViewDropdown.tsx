@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FiChevronDown } from "react-icons/fi";
-import { VideoViewType } from "../types";
+import type { VideoViewType } from "../types";
 
 interface ViewDropdownProps {
     viewType: VideoViewType;

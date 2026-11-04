@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export async function getSettings(): Promise<Settings> {
     try {
-        const data = await chrome.storage.local.get(SETTINGS_KEY);
+        const data = await chrome.storage.local.get<{ smartseek_settings: Settings }>(SETTINGS_KEY);
         return data[SETTINGS_KEY] || DEFAULT_SETTINGS;
     } catch (error) {
         console.error("[SmartSeek] Error loading settings:", error);

@@ -1,5 +1,5 @@
 import React from "react";
-import { VideoViewType } from "../types";
+import type { VideoViewType } from "../types";
 
 interface EmptyStateProps {
   hasSearchTerm?: boolean;

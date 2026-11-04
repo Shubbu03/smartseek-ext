@@ -1,4 +1,4 @@
-import { VideoProgress } from "@/model/VideoProgress";
+import type { VideoProgress } from "@/library/types";
 import { FiPlay, FiTrash2, FiStar } from "react-icons/fi";
 import { formatTime, calculateProgress, getProgressColor } from "../utils/videoUtils";
 

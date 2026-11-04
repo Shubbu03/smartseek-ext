@@ -1,4 +1,4 @@
-import { VideoProgress } from "@/model/VideoProgress";
+import type { VideoProgress } from "@/library/types";
 
 export function formatTime(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) seconds = 0;

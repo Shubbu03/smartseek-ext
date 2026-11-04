@@ -1,6 +1,6 @@
-import { cleanupOldTimestamps } from "../../lib/storage";
+import { cleanupOldTimestamps } from "@/library/storage";
 
-export default defineBackground(() => {
+export function startBackground() {
   console.log("SmartSeek background started", { id: browser.runtime.id });
 
   chrome.runtime.setUninstallURL("https://forms.gle/QGixqWqdrdxABfYx9", () => {
@@ -50,4 +50,4 @@ export default defineBackground(() => {
       return true;
     }
   });
-});
+}

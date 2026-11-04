@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { VideoProgress } from "@/model/VideoProgress";
-import { SortOption, VideoViewType } from "../types";
+import type { VideoProgress } from "@/library/types";
+import type { SortOption, VideoViewType } from "../types";
 import { calculateProgress } from "../utils/videoUtils";
 
 export function useVideoFiltering(

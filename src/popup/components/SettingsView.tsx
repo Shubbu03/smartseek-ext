@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { getSettings, saveSettings, Settings } from "../../../lib/settings";
-import { deleteAllVideos } from "../../../lib/storage";
-import { VideoViewType } from "../types";
+import { getSettings, saveSettings, type Settings } from "@/settings/storage";
+import { deleteAllVideos } from "@/library/storage";
+import type { VideoViewType } from "../types";
 import { FiChevronDown, FiExternalLink, FiCoffee } from "react-icons/fi";
 
 export default function SettingsView() {

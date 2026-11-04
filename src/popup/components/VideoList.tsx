@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { VideoProgress } from "@/model/VideoProgress";
+import type { VideoProgress } from "@/library/types";
 import { FiClock, FiSearch, FiX, FiMusic, FiChevronDown, FiStar } from "react-icons/fi";
-import { VideoViewType } from "../types";
+import type { VideoViewType } from "../types";
 import VideoCard from "./VideoCard";
 import EmptyState from "./EmptyState";
 

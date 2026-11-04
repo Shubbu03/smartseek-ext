@@ -2,7 +2,15 @@ import { defineConfig } from "wxt";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  srcDir: "src",
   modules: ["@wxt-dev/module-react"],
+  webExt: {
+    disabled: true,
+  },
+  zip: {
+    artifactTemplate: "{{name}}-{{version}}-{{browser}}.zip",
+    sourcesTemplate: "{{name}}-{{version}}-sources.zip",
+  },
   vite: () => ({
     plugins: [tailwindcss()],
   }),

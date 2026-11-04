@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { VideoProgress } from "@/model/VideoProgress";
-import { deleteVideo } from "../../../lib/storage";
+import type { VideoProgress } from "@/library/types";
+import { deleteVideo } from "@/library/storage";
 import { calculateProgress } from "../utils/videoUtils";
 
 export function useVideos() {
@@ -8,7 +8,7 @@ export function useVideos() {
 
   useEffect(() => {
     try {
-      chrome.storage.local.get("video_progress", (data) => {
+      chrome.storage.local.get<{ video_progress: Record<string, VideoProgress> }>("video_progress", (data) => {
         setVideos(data.video_progress || {});
       });
 
@@ -36,7 +36,7 @@ export function useVideos() {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       try {
         await deleteVideo(videoId);
-        chrome.storage.local.get("video_progress", (data) => {
+        chrome.storage.local.get<{ video_progress: Record<string, VideoProgress> }>("video_progress", (data) => {
           setVideos(data.video_progress || {});
         });
       } catch (error) {
