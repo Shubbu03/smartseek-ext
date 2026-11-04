@@ -9,7 +9,7 @@ SmartSeek is a Chrome extension that **automatically remembers** where you left 
 - 📌 Remembers timestamps **without relying on YouTube history**
 - 🧠 Smart resume — picks up where you left off when revisiting
 - 🧭 Clean popup UI showing saved videos and links to resume
-- 🧼 Automatic cleanup of old videos (after 45 days)
+- 🧼 Cleanup of old non-favorite videos after 45 days (up to 100 per browser startup)
 - 📊 Visual progress indicators with percentage and time remaining
 
 ### v2 Features
@@ -20,6 +20,15 @@ SmartSeek is a Chrome extension that **automatically remembers** where you left 
 - 🗑️ **Bulk Management** — Delete all videos at once (with safety confirmations)
 - 🔄 **Smart Sorting** — Sort by title, progress (most/least watched), or default
 - 🔎 **Search Functionality** — Quickly find videos by title
+
+### v3 development build
+
+- Choose **Automatic** or **Only videos I choose**. Chosen videos keep their resume position updated after the first explicit save.
+- Save the current video from the popup or the optional YouTube control, with acknowledged save/error feedback.
+- Control automatic resume separately, browse Chosen/Completed views, and keep saves for 45 days or until deletion.
+- Playback uses cancellable video sessions, restore-once rules, media/ad guards, and coordinated multi-tab checkpoints.
+
+This is an intermediate build on `feat/v3-foundation`, still using the existing popup design and manifest version 2.0.0. Live YouTube compatibility requires owner verification. The full Cobalt interface, export/import, Undo, and sync are not implemented yet. See [playback behavior and manual checks](PLAYBACK.md).
 
 ## 🚀 How It Works
 
@@ -32,7 +41,7 @@ SmartSeek is a Chrome extension that **automatically remembers** where you left 
 
 - **Star Videos**: Click the star icon on any video thumbnail to add it to favorites
 - **Filter Views**: Use the dropdown next to the view title to switch between Recent Saves, Music Videos, and Favourites
-- **Music Detection**: Enable "Save Music Videos" in settings to save only music videos, or keep it off to save all videos
+- **Music Detection**: Enable "Save Music Videos" to include music videos alongside other videos
 - **Customize Default View**: Set your preferred view (Recent/Music/Favourites) in Settings → Default View
 
 ## 🧪 Tech Stack
@@ -85,15 +94,16 @@ Requires Node.js 22.12 or newer and Bun.
 src/
 ├── entrypoints/  # WXT background/content bootstraps and popup HTML/React mount
 ├── background/   # Extension startup and lifecycle handlers
-├── playback/     # Existing YouTube progress tracking and manual-save control
-├── youtube/      # YouTube-specific detection
-├── library/      # Saved-video storage and types
+├── playback/     # Cancellable controller, checkpoint client, and optional save control
+├── youtube/      # YouTube selectors, identity evidence, metadata, and ad observation
+├── library/      # Storage client, background coordinator, migration, and record types
 ├── settings/     # Preference storage and types
+├── shared/       # Validated extension message contracts
 ├── popup/        # Popup app, components, hooks, styles, and display helpers
 └── assets/       # Bundled source assets
 public/          # Extension icons and other files copied into the build
 docs/            # Rebuild plan and project documentation
-tests/           # Node-based storage baseline and known regressions
+tests/           # Node-based persistence, migration, messaging, and regression tests
 ```
 
 Cross-module imports use `@/`, which WXT resolves to `src/`. WXT generates its
@@ -102,18 +112,24 @@ entrypoint structure. `bun run compile` checks TypeScript, and the build/ZIP
 scripts produce artifacts in `.output/`. Development browser auto-launch is
 disabled; load and verify the extension manually.
 
-The v3 foundation currently preserves the existing tracking, storage, and popup
-behavior. The playback rewrite, storage migration, and approved Cobalt interface
-will be implemented in subsequent steps.
+The persistence step now routes saves and settings through one background writer,
+migrates legacy data into versioned per-video records, and preserves favorites
+across checkpoints. The existing popup uses this interface and reports loading,
+storage failures, and migration warnings. Completed videos are retained.
+The next increment adds saving modes and the playback rewrite, plus minimal controls
+in the existing popup. Export/import and the approved Cobalt interface remain subsequent
+steps. This is an intermediate development build, not a v3 release.
+See [persistence and migration](PERSISTENCE.md) for behavior, recovery, and manual checks.
 
 ## Reliability baseline
 
 Run `bun run test` for the Node-based Vitest suite or `bun run test:watch` while
 developing. WXT supplies the in-memory extension APIs; no browser is launched.
-The suite includes two reproduced storage defects marked as expected failures,
-which are reported separately from ordinary passing checks. They remain unfixed
-until the persistence phase. See [the baseline and manual playback checklist](docs/reliability-baseline.md)
-for the issue register, expected-failure convention, and acceptance criteria.
+The two reproduced storage regressions now pass as ordinary tests. The suite also
+covers migration interruption/retry, worker restart, quota/write failures, retention,
+durable acknowledgements, and message validation/permissions.
+Playback tests use happy-dom in Node for navigation, resume, ad/media guards,
+control lifecycle, coalesced saves, and failure recovery. They do not launch a browser.
 
 ## 🤝 Contributing
 

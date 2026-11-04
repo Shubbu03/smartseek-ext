@@ -1,86 +1,49 @@
+import { requestLibrary } from "@/shared/libraryProtocol";
+import { isVideoKey, STORAGE_KEYS } from "./keys";
 import type { VideoProgress } from "./types";
 
-const STORAGE_KEY = "video_progress";
-const EXPIRATION_DAYS = 45;
-
-type VideoProgressStorage = {
-  [STORAGE_KEY]: Record<string, VideoProgress>;
-};
-
-function isExpired(dateStr: string): boolean {
-  const updated = new Date(dateStr);
-  const now = new Date();
-  const diffInDays =
-    (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24);
-  return diffInDays > EXPIRATION_DAYS;
-}
-
 export async function cleanupOldTimestamps(): Promise<void> {
-  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
-  const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
-
-  const cleaned: Record<string, VideoProgress> = {};
-  for (const [videoId, progress] of Object.entries(all)) {
-    if (!isExpired(progress.updatedAt)) {
-      cleaned[videoId] = progress;
-    }
-  }
-
-  await chrome.storage.local.set({ [STORAGE_KEY]: cleaned });
+  await requestLibrary({ type: "maintenance" });
 }
 
 export async function saveTimestamp(video: VideoProgress): Promise<void> {
-  await cleanupOldTimestamps();
-
-  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
-  const all = data[STORAGE_KEY] || {};
-  all[video.videoId] = video;
-
-  await chrome.storage.local.set({ [STORAGE_KEY]: all });
+  await requestLibrary({ type: "progress.save", video });
 }
 
-export async function getTimestamp(
-  videoId: string
-): Promise<VideoProgress | null> {
-  await cleanupOldTimestamps();
-  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
-  return data[STORAGE_KEY]?.[videoId] || null;
+export function getTimestamp(videoId: string): Promise<VideoProgress | null> {
+  return requestLibrary({ type: "library.get", videoId });
+}
+
+export function getVideos(): Promise<Record<string, VideoProgress>> {
+  return requestLibrary({ type: "library.list" });
 }
 
 export async function deleteVideo(videoId: string): Promise<void> {
-  await cleanupOldTimestamps();
-  const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
-  const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
-
-  if (all[videoId]) {
-    delete all[videoId];
-    await chrome.storage.local.set({ [STORAGE_KEY]: all });
-  }
+  await requestLibrary({ type: "video.remove", videoId });
 }
 
-export async function toggleFavorite(videoId: string): Promise<void> {
-  try {
-    const data = await chrome.storage.local.get<VideoProgressStorage>(STORAGE_KEY);
-    const all: Record<string, VideoProgress> = data[STORAGE_KEY] || {};
+export async function setFavorite(videoId: string, favorite: boolean): Promise<void> {
+  await requestLibrary({ type: "favorite.set", videoId, favorite });
+}
 
-    if (all[videoId]) {
-      all[videoId] = {
-        ...all[videoId],
-        isFavorite: !all[videoId].isFavorite,
-      };
-      await chrome.storage.local.set({ [STORAGE_KEY]: all });
-    }
-  } catch (error) {
-    console.error("[SmartSeek] Error toggling favorite:", error);
-    throw error;
-  }
+export async function setSelected(videoId: string, selected: boolean): Promise<void> {
+  await requestLibrary({ type: "selection.set", videoId, selected });
 }
 
 export async function deleteAllVideos(): Promise<void> {
-  try {
-    await chrome.storage.local.set({ [STORAGE_KEY]: {} });
-  } catch (error) {
-    console.error("[SmartSeek] Error deleting all videos:", error);
-    throw error;
-  }
+  await requestLibrary({ type: "videos.clear" });
+}
+
+export function getMigrationStatus() {
+  return requestLibrary({ type: "migration.status" });
+}
+
+export function watchVideos(onChange: () => void): () => void {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+    if (area === "local" && Object.keys(changes).some((key) => isVideoKey(key) || key === STORAGE_KEYS.meta)) {
+      onChange();
+    }
+  };
+  chrome.storage.onChanged.addListener(listener);
+  return () => chrome.storage.onChanged.removeListener(listener);
 }

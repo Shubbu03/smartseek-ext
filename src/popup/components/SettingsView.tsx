@@ -7,14 +7,21 @@ import { FiChevronDown, FiExternalLink, FiCoffee } from "react-icons/fi";
 export default function SettingsView() {
   const [settings, setSettings] = useState<Settings>({ saveMusicVideosOnly: false });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const viewDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let active = true;
     getSettings().then((loadedSettings) => {
-      setSettings(loadedSettings);
-      setLoading(false);
+      if (active) setSettings(loadedSettings);
+    }).catch((failure: unknown) => {
+      if (active) setError(failure instanceof Error ? failure.message : "Could not load settings.");
+    }).finally(() => {
+      if (active) setLoading(false);
     });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -33,27 +40,24 @@ export default function SettingsView() {
     };
   }, [isViewDropdownOpen]);
 
-  const handleToggle = async (key: keyof Settings) => {
-    const newSettings = { ...settings, [key]: !settings[key] };
-    setSettings(newSettings);
+  const persist = async (newSettings: Settings) => {
+    setSaving(true);
     try {
       await saveSettings(newSettings);
+      setSettings(newSettings);
     } catch (error) {
       console.error("[SmartSeek] Error saving settings:", error);
-      setSettings(settings);
+      setError(error instanceof Error ? error.message : "Could not save settings.");
+    } finally {
+      setSaving(false);
     }
   };
 
+  const handleToggle = () => persist({ ...settings, saveMusicVideosOnly: !settings.saveMusicVideosOnly });
+
   const handleDefaultViewChange = async (view: VideoViewType) => {
-    const newSettings = { ...settings, defaultView: view };
-    setSettings(newSettings);
     setIsViewDropdownOpen(false);
-    try {
-      await saveSettings(newSettings);
-    } catch (error) {
-      console.error("[SmartSeek] Error saving settings:", error);
-      setSettings(settings);
-    }
+    await persist({ ...settings, defaultView: view });
   };
 
   const getViewLabel = (view?: VideoViewType): string => {
@@ -62,6 +66,10 @@ export default function SettingsView() {
         return "Music Videos";
       case "favourites":
         return "Favourites";
+      case "selected":
+        return "Chosen Videos";
+      case "completed":
+        return "Completed";
       default:
         return "Recent Saves";
     }
@@ -71,6 +79,8 @@ export default function SettingsView() {
     { value: "recent", label: "Recent Saves" },
     { value: "music", label: "Music Videos" },
     { value: "favourites", label: "Favourites" },
+    { value: "selected", label: "Chosen Videos" },
+    { value: "completed", label: "Completed" },
   ];
 
   const handleDeleteAll = async () => {
@@ -94,6 +104,10 @@ export default function SettingsView() {
     }
   };
 
+  if (error) {
+    return <p className="flex-1 p-4 text-sm" role="alert">{error} Close settings and try again.</p>;
+  }
+
   if (loading) {
     return (
       <div className="flex-1 overflow-y-auto p-4">
@@ -110,20 +124,54 @@ export default function SettingsView() {
         <div>
           <h2 className="text-lg font-semibold text-[#2d3133] mb-4">Preferences</h2>
 
+          <fieldset disabled={saving} className="mb-4 space-y-4 rounded-lg border border-[#d1d5db] bg-white p-4 text-sm shadow-sm">
+            <legend className="px-1 font-medium">Playback and saving</legend>
+            <label className="block space-y-1">
+              <span>Save videos</span>
+              <select value={settings.saveMode ?? "automatic"} className="w-full rounded border border-gray-300 p-2"
+                onChange={(event) => { void persist({ ...settings, saveMode: event.target.value as "automatic" | "selected" }); }}>
+                <option value="automatic">Automatically save eligible videos</option>
+                <option value="selected">Only videos I choose</option>
+              </select>
+            </label>
+            <p className="text-xs text-gray-500">Choosing a video saves its current position and keeps updating it as you watch.</p>
+            <label className="flex items-center justify-between gap-3">
+              Resume saved videos automatically
+              <input type="checkbox" checked={settings.autoResume ?? true}
+                onChange={(event) => { void persist({ ...settings, autoResume: event.target.checked }); }} />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              Show the save button on YouTube
+              <input type="checkbox" checked={settings.showSaveButton ?? true}
+                onChange={(event) => { void persist({ ...settings, showSaveButton: event.target.checked }); }} />
+            </label>
+            <label className="block space-y-1">
+              <span>Keep ordinary saves</span>
+              <select value={settings.retentionDays === null ? "forever" : "45"} className="w-full rounded border border-gray-300 p-2"
+                onChange={(event) => { void persist({ ...settings, retentionDays: event.target.value === "forever" ? null : 45 }); }}>
+                <option value="45">For 45 days without an update</option>
+                <option value="forever">Until I delete them</option>
+              </select>
+            </label>
+            <p className="text-xs text-gray-500">Favorites are always kept until you remove them.</p>
+          </fieldset>
+
           <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-[#d1d5db] shadow-sm mb-4">
             <div className="flex-1 mr-4">
               <h3 className="font-medium text-[#2d3133] mb-1">
-                Save Music Videos
+                Automatically Include Music
               </h3>
               <p className="text-sm text-gray-500">
-                When enabled, music videos will also be saved.
+                Include detected music in Automatic mode. Videos you choose are saved regardless.
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input
                 type="checkbox"
                 checked={settings.saveMusicVideosOnly}
-                onChange={() => handleToggle("saveMusicVideosOnly")}
+                disabled={saving}
+                aria-label="Automatically include music videos"
+                onChange={() => { void handleToggle(); }}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#2d3133] peer-focus:ring-opacity-20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2d3133]"></div>
@@ -139,6 +187,7 @@ export default function SettingsView() {
             </p>
             <div className="relative" ref={viewDropdownRef}>
               <button
+                disabled={saving}
                 onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
                 className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:border-[#2d3133] transition-colors text-[#2d3133]"
               >
@@ -177,6 +226,7 @@ export default function SettingsView() {
               This action will permanently delete <strong>ALL</strong> saved videos including favorites and music videos. This cannot be undone.
             </p>
             <button
+              disabled={saving}
               onClick={handleDeleteAll}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm"
             >

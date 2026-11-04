@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { getTimestamp, saveTimestamp, toggleFavorite } from "@/library/storage";
+import { getTimestamp, saveTimestamp, setFavorite } from "@/library/storage";
 import type { VideoProgress } from "@/library/types";
 import { lectureVideo, tutorialVideo } from "../fixtures/videos";
 
@@ -8,7 +8,7 @@ describe("SS-001: favorite preservation", () => {
 
   beforeEach(async () => {
     await saveTimestamp(lectureVideo);
-    await toggleFavorite("lecture-a");
+    await setFavorite("lecture-a", true);
     expect((await getTimestamp("lecture-a"))?.isFavorite).toBe(true);
 
     await saveTimestamp({ ...lectureVideo, lastWatched: 180 });
@@ -16,8 +16,7 @@ describe("SS-001: favorite preservation", () => {
     expect(savedVideo?.lastWatched).toBe(180);
   });
 
-  // Reproduced SS-001. Remove .fails when the persistence phase fixes it.
-  test.fails("a new progress checkpoint preserves the user's favorite choice", () => {
+  test("a new progress checkpoint preserves the user's favorite choice", () => {
     expect(savedVideo?.isFavorite).toBe(true);
   });
 });
@@ -45,8 +44,7 @@ describe("SS-002: overlapping video saves", () => {
     if (savedVideos.tutorial) expect(savedVideos.tutorial).toEqual(tutorialVideo);
   });
 
-  // Reproduced SS-002. Remove .fails when the write coordinator fixes it.
-  test.fails("overlapping saves for different videos preserve both saved places", () => {
+  test("overlapping saves for different videos preserve both saved places", () => {
     expect(savedVideos).toEqual({
       lecture: lectureVideo,
       tutorial: tutorialVideo,

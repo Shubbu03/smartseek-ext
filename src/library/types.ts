@@ -6,4 +6,6 @@ export type VideoProgress = {
   updatedAt: string;
   isMusic?: boolean;
   isFavorite?: boolean;
+  isSelected?: boolean;
+  isCompleted?: boolean;
 };

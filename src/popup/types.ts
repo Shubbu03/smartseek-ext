@@ -5,5 +5,5 @@ export type SortOption =
     | "progressDesc"
     | "progressAsc";
 
-export type VideoViewType = "recent" | "music" | "favourites";
+export type VideoViewType = "recent" | "music" | "favourites" | "selected" | "completed";
 

@@ -7,18 +7,12 @@ export function useVideoFiltering(
   videos: Record<string, VideoProgress>,
   searchTerm: string,
   sortOrder: SortOption,
-  viewType: VideoViewType,
-  cleanupCompletedVideos: () => void
+  viewType: VideoViewType
 ) {
   const filteredAndSortedVideos = useMemo(() => {
-    const videosToRemove: string[] = [];
-    let videoEntries = Object.entries(videos).filter(([id, video]) => {
-      const progress = calculateProgress(video);
-      if (progress >= 100) {
-        videosToRemove.push(id);
-        return false;
-      }
-
+    const videoEntries = Object.entries(videos).filter(([, video]) => {
+      if (viewType === "selected" && !video.isSelected) return false;
+      if (viewType === "completed" && !video.isCompleted) return false;
       if (viewType === "music") {
         if (!video.isMusic) {
           return false;
@@ -27,15 +21,10 @@ export function useVideoFiltering(
         if (!video.isFavorite) {
           return false;
         }
-      } else {
       }
 
       return (video.title || "").toLowerCase().includes(searchTerm.toLowerCase());
     });
-
-    if (videosToRemove.length > 0) {
-      cleanupCompletedVideos();
-    }
 
     switch (sortOrder) {
       case "titleAsc":
@@ -72,7 +61,7 @@ export function useVideoFiltering(
         break;
     }
     return videoEntries;
-  }, [videos, searchTerm, sortOrder, viewType, cleanupCompletedVideos]);
+  }, [videos, searchTerm, sortOrder, viewType]);
 
   return filteredAndSortedVideos;
 }

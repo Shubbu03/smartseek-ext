@@ -7,9 +7,10 @@ type VideoCardProps = {
   video: VideoProgress;
   onDelete: (videoId: string, videoTitle?: string) => void;
   onToggleFavorite: (videoId: string) => void;
+  onToggleSelection: (videoId: string) => void;
 };
 
-export default function VideoCard({ videoId, video, onDelete, onToggleFavorite }: VideoCardProps) {
+export default function VideoCard({ videoId, video, onDelete, onToggleFavorite, onToggleSelection }: VideoCardProps) {
   const progress = calculateProgress(video);
   const progressColor = getProgressColor(progress);
   const isFavorite = video.isFavorite || false;
@@ -56,6 +57,11 @@ export default function VideoCard({ videoId, video, onDelete, onToggleFavorite }
           <h3 className="font-semibold text-sm text-[#2d3133] line-clamp-2 leading-tight break-words mb-1">
             {video.title || "Untitled Video"}
           </h3>
+          <button className="mb-1 text-[10px] underline underline-offset-2" aria-pressed={!!video.isSelected}
+            title="Chosen videos keep updating in Only videos I choose mode, including music videos."
+            onClick={() => onToggleSelection(videoId)}>
+            {video.isSelected ? "Chosen · stop choosing" : "Choose this video"}
+          </button>
 
           {video.duration ? (
             <div className="space-y-1">

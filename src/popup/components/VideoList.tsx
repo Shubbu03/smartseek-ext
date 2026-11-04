@@ -15,6 +15,7 @@ type VideoListProps = {
   onViewChange: (view: VideoViewType) => void;
   onDeleteVideo: (videoId: string, videoTitle?: string) => void;
   onToggleFavorite: (videoId: string) => void;
+  onToggleSelection: (videoId: string) => void;
 };
 
 export default function VideoList({
@@ -27,6 +28,7 @@ export default function VideoList({
   onViewChange,
   onDeleteVideo,
   onToggleFavorite,
+  onToggleSelection,
 }: VideoListProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,12 +49,14 @@ export default function VideoList({
     };
   }, [isDropdownOpen]);
 
-  const showMusicToggleWarning = viewType === "music" && !isMusicToggleEnabled;
+  const showMusicToggleWarning = viewType === "music" && !isMusicToggleEnabled && videos.length === 0 && !searchTerm;
 
   const options: { value: VideoViewType; label: string }[] = [
     { value: "recent", label: "Recent Saves" },
     { value: "music", label: "Music Videos" },
     { value: "favourites", label: "Favourites" },
+    { value: "selected", label: "Chosen Videos" },
+    { value: "completed", label: "Completed" },
   ];
 
   const getViewLabel = (view: VideoViewType): string => {
@@ -61,6 +65,10 @@ export default function VideoList({
         return "Music Videos";
       case "favourites":
         return "Favourites";
+      case "selected":
+        return "Chosen Videos";
+      case "completed":
+        return "Completed";
       default:
         return "Recent Saves";
     }
@@ -145,7 +153,7 @@ export default function VideoList({
           viewType={viewType}
         />
       ) : videos.length === 0 ? (
-        <EmptyState hasSearchTerm={!!searchTerm} />
+        <EmptyState hasSearchTerm={!!searchTerm} viewType={viewType} />
       ) : (
         <ul className="space-y-3">
           {videos.map(([id, video]) => (
@@ -155,6 +163,7 @@ export default function VideoList({
               video={video}
               onDelete={onDeleteVideo}
               onToggleFavorite={onToggleFavorite}
+              onToggleSelection={onToggleSelection}
             />
           ))}
         </ul>

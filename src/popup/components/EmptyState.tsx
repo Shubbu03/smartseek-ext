@@ -19,10 +19,10 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           <span className="text-2xl font-bold text-gray-400">i</span>
         </div>
         <p className="font-medium text-center px-4">
-          Music videos are disabled
+          No music videos saved here yet
         </p>
         <p className="text-sm mt-1 text-center px-4">
-          Enable "Save Music Videos" in settings to view music videos here.
+          Choose a music video explicitly, or enable "Automatically Include Music" in settings.
         </p>
       </div>
     );
@@ -36,12 +36,15 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       <p className="font-medium">
         {hasSearchTerm
           ? "No videos match your search."
-          : "No saved videos yet."}
+          : viewType === "selected" ? "No chosen videos yet."
+          : viewType === "completed" ? "No completed videos yet."
+          : "No saved videos here yet."}
       </p>
       <p className="text-sm mt-1">
         {hasSearchTerm
           ? "Try a different search term or clear filters."
-          : "Videos you watch will appear here."}
+          : viewType === "completed" ? "Finished videos stay available here."
+          : "Watch in Automatic mode, or choose Save this video."}
       </p>
     </div>
   );

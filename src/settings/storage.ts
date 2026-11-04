@@ -1,31 +1,21 @@
-const SETTINGS_KEY = "smartseek_settings";
+import { STORAGE_KEYS } from "@/library/keys";
+import { requestLibrary } from "@/shared/libraryProtocol";
+import type { Settings } from "./types";
 
-export type Settings = {
-  saveMusicVideosOnly: boolean;
-  defaultView?: "recent" | "music" | "favourites";
-};
+export type { Settings } from "./types";
 
-const DEFAULT_SETTINGS: Settings = {
-  saveMusicVideosOnly: false,
-  defaultView: "recent",
-};
-
-export async function getSettings(): Promise<Settings> {
-    try {
-        const data = await chrome.storage.local.get<{ smartseek_settings: Settings }>(SETTINGS_KEY);
-        return data[SETTINGS_KEY] || DEFAULT_SETTINGS;
-    } catch (error) {
-        console.error("[SmartSeek] Error loading settings:", error);
-        return DEFAULT_SETTINGS;
-    }
+export function getSettings(): Promise<Settings> {
+  return requestLibrary({ type: "settings.get" });
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
-    try {
-        await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
-    } catch (error) {
-        console.error("[SmartSeek] Error saving settings:", error);
-        throw error;
-    }
+  await requestLibrary({ type: "settings.save", settings });
 }
 
+export function watchSettings(onChange: () => void): () => void {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+    if (area === "local" && changes[STORAGE_KEYS.settings]) onChange();
+  };
+  chrome.storage.onChanged.addListener(listener);
+  return () => chrome.storage.onChanged.removeListener(listener);
+}
