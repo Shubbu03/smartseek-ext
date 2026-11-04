@@ -1,4 +1,4 @@
-import { copyProgress, copySettings, isRecord, isSettings, isVideoProgress } from "@/shared/libraryProtocol";
+import { copyProgress, isRecord, isVideoProgress, normalizeStoredSettings } from "@/shared/libraryProtocol";
 import type { PlaybackPolicy } from "@/shared/playbackTypes";
 import { STORAGE_KEYS } from "./keys";
 import type { VideoProgress } from "./types";
@@ -40,9 +40,10 @@ export async function readSettingsRecord() {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.settings);
   const settings: unknown = stored[STORAGE_KEYS.settings];
   const rawRevision = isRecord(settings) ? settings.revision : undefined;
-  if (!isSettings(settings)) throw new Error("Saved settings are damaged. Recovery is required.");
+  const normalized = normalizeStoredSettings(settings);
+  if (!normalized) throw new Error("Saved settings are damaged. Recovery is required.");
   const revision = Number.isSafeInteger(rawRevision) && Number(rawRevision) >= 0 ? Number(rawRevision) : 0;
-  return { ...copySettings(settings), revision };
+  return { ...normalized, revision };
 }
 
 export async function readPolicy(): Promise<PlaybackPolicy> {
@@ -53,7 +54,7 @@ export async function readPolicy(): Promise<PlaybackPolicy> {
     autoResume: settings.autoResume ?? true,
     showSaveButton: settings.showSaveButton ?? true,
     includeMusic: settings.saveMusicVideosOnly,
-    retentionDays: settings.retentionDays === null ? null : 45,
+    retentionDays: settings.retentionDays ?? null,
   };
 }
 

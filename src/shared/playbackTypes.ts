@@ -1,4 +1,5 @@
 import type { VideoProgress } from "@/library/types";
+import type { RetentionDays } from "@/settings/types";
 
 export type PlaybackPolicy = {
   revision: number;
@@ -6,7 +7,7 @@ export type PlaybackPolicy = {
   autoResume: boolean;
   showSaveButton: boolean;
   includeMusic: boolean;
-  retentionDays: 45 | null;
+  retentionDays: RetentionDays | null;
 };
 
 export type CheckpointReason = "play" | "tick" | "pause" | "seek" | "hidden" | "leave" | "ended" | "manual";

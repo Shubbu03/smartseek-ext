@@ -1,5 +1,6 @@
 import type { VideoProgress } from "@/library/types";
 import type { Settings } from "@/settings/types";
+import { isRetentionDays } from "@/settings/types";
 import type { CheckpointReply, PlaybackCheckpoint, PlaybackPolicy, SessionOpened } from "./playbackTypes";
 
 export const LIBRARY_CHANNEL = "smartseek:library:v3";
@@ -93,7 +94,7 @@ export function isSettings(value: unknown): value is Settings {
     (value.saveMode === undefined || value.saveMode === "automatic" || value.saveMode === "selected") &&
     (value.autoResume === undefined || typeof value.autoResume === "boolean") &&
     (value.showSaveButton === undefined || typeof value.showSaveButton === "boolean") &&
-    (value.retentionDays === undefined || value.retentionDays === null || value.retentionDays === 45);
+    (value.retentionDays === undefined || value.retentionDays === null || isRetentionDays(value.retentionDays));
 }
 
 export function copySettings(settings: Settings): Settings {
@@ -105,6 +106,12 @@ export function copySettings(settings: Settings): Settings {
     ...(settings.showSaveButton !== undefined ? { showSaveButton: settings.showSaveButton } : {}),
     ...(settings.retentionDays !== undefined ? { retentionDays: settings.retentionDays } : {}),
   };
+}
+
+export function normalizeStoredSettings(value: unknown): Settings | null {
+  // The discontinued implicit/explicit 45-day policy must never opt a user into deletion.
+  const settings = isRecord(value) && value.retentionDays === 45 ? { ...value, retentionDays: null } : value;
+  return isSettings(settings) ? copySettings(settings) : null;
 }
 
 export function isMigrationStatus(value: unknown): value is MigrationStatus {
@@ -200,7 +207,7 @@ export function isPlaybackPolicy(value: unknown): value is PlaybackPolicy {
   return isRecord(value) && Number.isSafeInteger(value.revision) && Number(value.revision) >= 0 &&
     (value.saveMode === "automatic" || value.saveMode === "selected") &&
     typeof value.autoResume === "boolean" && typeof value.showSaveButton === "boolean" &&
-    typeof value.includeMusic === "boolean" && (value.retentionDays === null || value.retentionDays === 45);
+    typeof value.includeMusic === "boolean" && (value.retentionDays === null || isRetentionDays(value.retentionDays));
 }
 
 export async function requestLibrary<C extends LibraryCommand>(

@@ -11,6 +11,7 @@ export function useVideoFiltering(
 ) {
   const filteredAndSortedVideos = useMemo(() => {
     const videoEntries = Object.entries(videos).filter(([, video]) => {
+      if (viewType === "recent" && video.isCompleted) return false;
       if (viewType === "selected" && !video.isSelected) return false;
       if (viewType === "completed" && !video.isCompleted) return false;
       if (viewType === "music") {

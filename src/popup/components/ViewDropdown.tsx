@@ -1,70 +1,22 @@
-import React, { useState, useRef, useEffect } from "react";
 import { FiChevronDown } from "react-icons/fi";
+import { isViewType, VIEW_LABELS } from "../types";
 import type { VideoViewType } from "../types";
 
-interface ViewDropdownProps {
-    viewType: VideoViewType;
-    onViewChange: (view: VideoViewType) => void;
+type ViewDropdownProps = { viewType: VideoViewType; counts: Record<VideoViewType, number>; onViewChange: (view: VideoViewType) => void };
+
+export default function ViewDropdown({ viewType, counts, onViewChange }: ViewDropdownProps) {
+  const moreActive = viewType !== "recent" && viewType !== "favourites";
+  return (
+    <div className="library-views" role="group" aria-label="Library views">
+      {(["recent", "favourites"] as const).map((view) => <button key={view} aria-pressed={viewType === view} onClick={() => onViewChange(view)}>
+        {VIEW_LABELS[view]}<span className="view-count">{counts[view]}</span>
+      </button>)}
+      <label className={`more-views${moreActive ? " is-active" : ""}`}>
+        <select aria-label="More library views" value={moreActive ? viewType : ""} onChange={(event) => { if (isViewType(event.target.value)) onViewChange(event.target.value); }}>
+          <option value="" disabled>More</option>
+          {(["selected", "music", "completed"] as const).map((view) => <option key={view} value={view}>{VIEW_LABELS[view]} ({counts[view]})</option>)}
+        </select><FiChevronDown aria-hidden="true" />
+      </label>
+    </div>
+  );
 }
-
-const ViewDropdown: React.FC<ViewDropdownProps> = ({ viewType, onViewChange }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [isOpen]);
-
-    const options: { value: VideoViewType; label: string }[] = [
-        { value: "recent", label: "Recent Saves" },
-        { value: "music", label: "Music Videos" },
-    ];
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded transition-colors"
-                aria-label="Change view type"
-            >
-                <span>{options.find((opt) => opt.value === viewType)?.label || "Recent Saves"}</span>
-                <FiChevronDown size={14} className={isOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-            </button>
-
-            {isOpen && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-[160px]">
-                    {options.map((option) => (
-                        <button
-                            key={option.value}
-                            onClick={() => {
-                                onViewChange(option.value);
-                                setIsOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-sm transition-colors ${viewType === option.value
-                                ? "bg-[#2d3133] text-[#f4f2ee]"
-                                : "text-[#2d3133] hover:bg-gray-100"
-                                }`}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default ViewDropdown;
-

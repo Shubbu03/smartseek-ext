@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VideoProgress } from "@/library/types";
-import { deleteVideo, getMigrationStatus, getVideos, watchVideos } from "@/library/storage";
+import { getMigrationStatus, getVideos, watchVideos } from "@/library/storage";
 
 export function useVideos() {
   const [videos, setVideos] = useState<Record<string, VideoProgress>>({});
@@ -34,15 +34,5 @@ export function useVideos() {
     };
   }, [reload]);
 
-  const handleDeleteVideo = async (videoId: string, videoTitle?: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${videoTitle || "this video"}"?`)) return;
-    try {
-      await deleteVideo(videoId);
-      await reload();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Could not remove this video.");
-    }
-  };
-
-  return { videos, loading, error, warnings, reload, handleDeleteVideo };
+  return { videos, loading, error, warnings, reload };
 }

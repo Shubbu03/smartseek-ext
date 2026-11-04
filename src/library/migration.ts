@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from "@/settings/types";
 import {
-  copyProgress, copySettings, isMigrationStatus, isRecord, isSettings, isVideoProgress,
+  copyProgress, isMigrationStatus, isRecord, isVideoProgress, normalizeStoredSettings,
 } from "@/shared/libraryProtocol";
 import type { MigrationStatus } from "@/shared/libraryProtocol";
 import { STORAGE_KEYS } from "./keys";
@@ -61,11 +61,11 @@ export async function initializeLibrary(): Promise<MigrationStatus> {
   }
 
   const legacySettings = backup.legacy.smartseek_settings;
-  if (legacySettings !== undefined && !isSettings(legacySettings)) {
+  const normalizedSettings = normalizeStoredSettings(legacySettings);
+  if (legacySettings !== undefined && !normalizedSettings) {
     warnings.push("Invalid legacy settings were replaced with defaults; original settings remain in backup.");
   }
-  records[STORAGE_KEYS.settings] = isSettings(legacySettings)
-    ? copySettings(legacySettings) : DEFAULT_SETTINGS;
+  records[STORAGE_KEYS.settings] = normalizedSettings ?? DEFAULT_SETTINGS;
   const meta: MigrationStatus = { version: 3, ready: true, migratedAt: backup.capturedAt, warnings };
   const planned = { ...records, [STORAGE_KEYS.backup]: backup, [STORAGE_KEYS.meta]: meta };
   const used = await chrome.storage.local.getBytesInUse(null);

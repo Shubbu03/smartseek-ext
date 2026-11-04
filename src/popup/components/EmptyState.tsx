@@ -1,53 +1,16 @@
-import React from "react";
+import { FiBookmark, FiCheckCircle, FiMusic, FiSearch, FiStar } from "react-icons/fi";
 import type { VideoViewType } from "../types";
 
-interface EmptyStateProps {
-  hasSearchTerm?: boolean;
-  isMusicToggleDisabled?: boolean;
-  viewType?: VideoViewType;
-}
+type EmptyStateProps = { view: VideoViewType; searching: boolean; selectedMode: boolean; libraryEmpty: boolean; onReset: () => void };
 
-const EmptyState: React.FC<EmptyStateProps> = ({
-  hasSearchTerm = false,
-  isMusicToggleDisabled = false,
-  viewType,
-}) => {
-  if (isMusicToggleDisabled && viewType === "music") {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 text-[#313536]">
-        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mb-3">
-          <span className="text-2xl font-bold text-gray-400">i</span>
-        </div>
-        <p className="font-medium text-center px-4">
-          No music videos saved here yet
-        </p>
-        <p className="text-sm mt-1 text-center px-4">
-          Choose a music video explicitly, or enable "Automatically Include Music" in settings.
-        </p>
-      </div>
-    );
-  }
-
+export default function EmptyState({ view, searching, selectedMode, libraryEmpty, onReset }: EmptyStateProps) {
+  const Icon = searching ? FiSearch : view === "favourites" ? FiStar : view === "completed" ? FiCheckCircle : view === "music" ? FiMusic : FiBookmark;
+  const title = searching ? "No matching videos" : libraryEmpty ? "Your next video starts here" : view === "favourites" ? "Keep your favorites close" : view === "selected" ? "A little more intentional" : view === "completed" ? "Nothing finished just yet" : view === "music" ? "No saved music yet" : "You’re all caught up";
+  const description = searching ? "Try another title, or clear your search." : view === "favourites" && !libraryEmpty ? "Star a video to find it here. Favorites are always kept until you remove them." : view === "completed" && !libraryEmpty ? "Videos you finish stay available in this view." : view === "selected" || selectedMode ? "Choose Save this video on YouTube, or choose a video already in your library." : view === "music" ? "Choose a music video to keep its place, or include music in Automatic mode." : "Watch a YouTube video and we’ll remember where you pause.";
   return (
-    <div className="flex flex-col items-center justify-center h-40 text-[#313536]">
-      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mb-3">
-        <span className="text-2xl font-bold text-gray-400">i</span>
-      </div>
-      <p className="font-medium">
-        {hasSearchTerm
-          ? "No videos match your search."
-          : viewType === "selected" ? "No chosen videos yet."
-          : viewType === "completed" ? "No completed videos yet."
-          : "No saved videos here yet."}
-      </p>
-      <p className="text-sm mt-1">
-        {hasSearchTerm
-          ? "Try a different search term or clear filters."
-          : viewType === "completed" ? "Finished videos stay available here."
-          : "Watch in Automatic mode, or choose Save this video."}
-      </p>
-    </div>
+    <section className="empty-state" aria-label={title}>
+      <div className="empty-symbol"><Icon aria-hidden="true" /></div><h2>{title}</h2><p>{description}</p>
+      {searching ? <button className="button button-secondary" onClick={onReset}>Clear search</button> : libraryEmpty ? <a className="button button-primary" href="https://www.youtube.com" target="_blank" rel="noreferrer">Open YouTube</a> : view !== "recent" ? <button className="text-button" onClick={onReset}>Back to Continue</button> : null}
+    </section>
   );
-};
-
-export default EmptyState;
+}

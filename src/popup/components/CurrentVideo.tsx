@@ -1,88 +1,30 @@
-import { useEffect, useRef, useState } from "react";
-import { getSettings, saveSettings, watchSettings } from "@/settings/storage";
-import type { PlaybackStatus } from "@/playback/playerControl";
-import { activePlayback } from "../playback";
+import { FiAlertCircle, FiBookmark, FiCheckCircle, FiLoader, FiMonitor, FiRefreshCw } from "react-icons/fi";
+import { useCurrentVideo } from "../hooks/useCurrentVideo";
+import { formatTime } from "../utils/videoUtils";
 
 export default function CurrentVideo() {
-  const [mode, setMode] = useState<"automatic" | "selected">("automatic");
-  const [status, setStatus] = useState<PlaybackStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const busyRef = useRef(false);
-  const loadedRef = useRef(false);
-  const request = useRef(0);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      const current = ++request.current;
-      try {
-        const [settings, player] = await Promise.all([getSettings(), activePlayback("status")]);
-        if (active && current === request.current) { setMode(settings.saveMode ?? "automatic"); if (!busyRef.current) setStatus(player); setError(null); }
-      } catch (failure) {
-        if (active && current === request.current) setError(failure instanceof Error ? failure.message : "Could not load this video.");
-      } finally {
-        loadedRef.current = true;
-        if (active) setLoading(false);
-      }
-    };
-    const unwatch = watchSettings(() => { void load(); });
-    const timer = setInterval(() => {
-      if (busyRef.current || !loadedRef.current) return;
-      const current = ++request.current;
-      activePlayback("status").then((player) => {
-        if (active && !busyRef.current && current === request.current) {
-          setStatus(player);
-          if (player?.state !== "error") setError(null);
-        }
-      }).catch((failure: unknown) => {
-        if (active && current === request.current) setError(failure instanceof Error ? failure.message : "Could not reach this video.");
-      });
-    }, 1000);
-    void load();
-    return () => { active = false; clearInterval(timer); unwatch(); };
-  }, []);
-
-  const changeMode = async (next: "automatic" | "selected") => {
-    busyRef.current = true;
-    request.current++;
-    setBusy(true);
-    try {
-      await saveSettings({ ...await getSettings(), saveMode: next });
-      setMode(next);
-      setStatus(await activePlayback("status"));
-      setError(null);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : "Could not change saving mode."); }
-    finally { busyRef.current = false; setBusy(false); }
-  };
-  const save = async () => {
-    busyRef.current = true;
-    request.current++;
-    setBusy(true);
-    try { setStatus(await activePlayback("save")); setError(null); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : "Could not save progress."); }
-    finally { busyRef.current = false; setBusy(false); }
-  };
+  const { status, loading, saving, error, save, reload } = useCurrentVideo();
+  const failed = !!error || status?.state === "error";
+  const waiting = loading || status?.state === "waiting";
+  const message = saving ? "Saving your place…" : error || status?.message || "Open a YouTube watch page to save your place.";
+  const canSave = !!status?.supported && status.canSave && !saving && !loading;
 
   return (
-    <div className="mx-4 mt-3 rounded-lg border border-gray-300 bg-white p-3 space-y-2">
-      <label className="flex items-center justify-between gap-3 text-xs font-medium">
-        Saving mode
-        <select value={mode} disabled={busy || loading} onChange={(event) => { void changeMode(event.target.value as "automatic" | "selected"); }}
-          className="max-w-[220px] rounded border border-gray-300 p-1.5 text-xs">
-          <option value="automatic">Automatic</option>
-          <option value="selected">Only videos I choose</option>
-        </select>
-      </label>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-600" role="status">{loading ? "Checking the current video…" : status?.message ?? "Open a YouTube watch page to save this video."}</p>
-        {status?.supported && <button onClick={() => { void save(); }} disabled={busy || !status.canSave}
-          className="shrink-0 rounded-md bg-[#2d3133] px-2.5 py-2 text-xs text-white disabled:opacity-50">
-          {busy ? "Saving…" : status.state === "error" ? "Retry save" : status.selected ? "Save progress" : "Save this video"}
-        </button>}
+    <section className={`current-video${failed ? " current-video-error" : ""}`} aria-label="Current YouTube video" aria-busy={loading || saving}>
+      <p className="overline">Current YouTube video</p>
+      <p className="current-video-title" title={status?.title || undefined}>{loading ? "Checking your current tab…" : status?.title || "A good place to pause."}</p>
+      <div className={`current-video-status${failed ? " error-copy" : ""}`} role={failed ? "alert" : "status"}>
+        {saving || loading ? <FiLoader className="spin" aria-hidden="true" /> : failed ? <FiAlertCircle aria-hidden="true" /> : status?.state === "saved" ? <FiCheckCircle aria-hidden="true" /> : <FiMonitor aria-hidden="true" />}
+        <span>{message}</span>
       </div>
-      {error && <p className="text-xs text-red-700" role="alert">{error}</p>}
-    </div>
+      {status?.position !== null && status?.position !== undefined && failed && <p className="last-saved">Last saved at {formatTime(status.position)}</p>}
+      {status?.supported ? (
+        <button className="icon-button current-save" disabled={!canSave} onClick={() => { void save(); }}
+          aria-label={saving ? "Saving progress" : failed ? "Retry saving this video" : status.selected ? "Save progress now" : "Save this video"}
+          title={saving ? "Saving…" : failed ? "Retry save" : status.selected ? "Save progress now" : "Save this video"}>
+          {saving ? <FiLoader className="spin" aria-hidden="true" /> : status.selected ? <FiCheckCircle aria-hidden="true" /> : <FiBookmark aria-hidden="true" />}
+        </button>
+      ) : error && !waiting ? <button className="icon-button current-save" onClick={() => { void reload(); }} aria-label="Check the current video again" title="Try again"><FiRefreshCw aria-hidden="true" /></button> : null}
+    </section>
   );
 }

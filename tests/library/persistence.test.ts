@@ -73,6 +73,7 @@ test("successful progress and preference writes survive a worker restart", async
 });
 
 test("reads never expire records and maintenance keeps old favorites and completed recent saves", async () => {
+  await saveSettings({ saveMusicVideosOnly: false, retentionDays: 30 });
   const old = "2020-01-01T00:00:00Z";
   await saveTimestamp({ ...lectureVideo, updatedAt: old });
   await setFavorite("lecture-a", true);
@@ -93,6 +94,7 @@ test("maintenance removes no more than 100 expired records per pass", async () =
   }));
   await fakeBrowser.storage.local.set({ video_progress: oldVideos });
   expect(Object.keys(await getVideos())).toHaveLength(105);
+  await saveSettings({ saveMusicVideosOnly: false, retentionDays: 30 });
   await cleanupOldTimestamps();
   expect(Object.keys(await getVideos())).toHaveLength(5);
 });

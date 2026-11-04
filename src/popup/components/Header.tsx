@@ -1,39 +1,35 @@
-import { FiSettings, FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiBookmark, FiChevronDown, FiLoader, FiSettings, FiZap } from "react-icons/fi";
 
 type HeaderProps = {
   currentView: "home" | "settings";
+  mode: "automatic" | "selected";
+  disabled: boolean;
+  saving: boolean;
   onViewChange: (view: "home" | "settings") => void;
+  onModeChange: (mode: "automatic" | "selected") => void;
 };
 
-export default function Header({ currentView, onViewChange }: HeaderProps) {
+export default function Header({ currentView, mode, disabled, saving, onViewChange, onModeChange }: HeaderProps) {
   return (
-    <div className="bg-[#2d3133] text-[#f4f2ee] p-3 shadow-md">
-      <div className="flex items-center relative">
-        {currentView === "settings" ? (
-          <button
-            onClick={() => onViewChange("home")}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity absolute left-0"
-            aria-label="Back to home"
-          >
-            <FiArrowLeft size={20} />
-            <span className="text-sm font-medium">Back</span>
-          </button>
-        ) : null}
-        <h1 className="text-xl font-bold flex-1 text-center">
-          {currentView === "settings" ? "Settings" : "smartseek"}
-        </h1>
-        {currentView === "home" ? (
-          <button
-            onClick={() => onViewChange("settings")}
-            className="p-1.5 hover:bg-[#3e4244] rounded-full transition-colors cursor-pointer absolute right-0"
-            aria-label="Open settings"
-            title="settings"
-          >
-            <FiSettings size={20} />
-          </button>
-        ) : null}
-      </div>
-    </div>
+    <header className="popup-header">
+      {currentView === "home" ? (
+        <div className="brand"><span className="brand-mark"><FiBookmark aria-hidden="true" /></span><span>smartseek</span></div>
+      ) : (
+        <div className="header-back"><button className="icon-button" aria-label="Back to library" onClick={() => onViewChange("home")}><FiArrowLeft aria-hidden="true" /></button><span>Settings</span></div>
+      )}
+      {currentView === "home" ? (
+        <div className="header-actions">
+          <label className="mode-picker" title="Choose which videos SmartSeek remembers">
+            {saving ? <FiLoader className="spin" aria-hidden="true" /> : <FiZap aria-hidden="true" />}
+            <select aria-label="Saving mode" value={mode} disabled={disabled || saving}
+              onChange={(event) => { if (event.target.value === "automatic" || event.target.value === "selected") onModeChange(event.target.value); }}>
+              <option value="automatic">Automatic</option><option value="selected">Only videos I choose</option>
+            </select>
+            <FiChevronDown aria-hidden="true" />
+          </label>
+          <button className="icon-button" aria-label="Open settings" title="Settings" onClick={() => onViewChange("settings")}><FiSettings aria-hidden="true" /></button>
+        </div>
+      ) : <span className="brand-mark brand-mark-small" aria-label="SmartSeek"><FiBookmark aria-hidden="true" /></span>}
+    </header>
   );
 }
-
