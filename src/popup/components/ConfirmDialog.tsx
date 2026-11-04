@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { FiAlertCircle, FiLoader } from "react-icons/fi";
+import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
+import { CircleNotchIcon } from "@phosphor-icons/react/dist/csr/CircleNotch";
 
 type ConfirmDialogProps = {
   title: string;
@@ -33,14 +34,14 @@ export default function ConfirmDialog({ title, description, confirmLabel, onConf
   return (
     <dialog ref={dialog} className="confirm-dialog" aria-labelledby={titleId} aria-describedby={descriptionId}
       onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
-      <div className="dialog-symbol"><FiAlertCircle aria-hidden="true" /></div>
+      <div className="dialog-symbol"><WarningCircleIcon aria-hidden="true" /></div>
       <h2 id={titleId}>{title}</h2>
       <p id={descriptionId}>{description}</p>
       {error && <p className="error-copy" role="alert">{error}</p>}
       <div className="dialog-actions">
         <button ref={cancel} type="button" className="button button-secondary" disabled={busy} onClick={onClose}>Cancel</button>
         <button type="button" className="button button-danger" disabled={busy} onClick={() => { void confirm(); }}>
-          {busy && <FiLoader className="spin" aria-hidden="true" />}{busy ? "Removing…" : confirmLabel}
+          {busy && <CircleNotchIcon className="spin" aria-hidden="true" />}{busy ? "Removing…" : confirmLabel}
         </button>
       </div>
     </dialog>

@@ -69,14 +69,13 @@ test("favorite, chosen and removal actions use committed data, and image failure
   await popup.click(".choose-button");
   expect(await getTimestamp("lecture-a")).toMatchObject({ isFavorite: true, isSelected: true });
   await popup.click(".remove-button");
-  expect(popup.get("dialog").hasAttribute("open")).toBe(true);
-  await popup.click(".dialog-actions .button-secondary");
-  expect(await getTimestamp("lecture-a")).not.toBeNull();
-  await popup.click(".remove-button");
-  await popup.click(".dialog-actions .button-danger");
   expect(await getTimestamp("lecture-a")).toBeNull();
   expect(popup.container.querySelector("dialog")).toBeNull();
-  expect(popup.get(".toast").textContent).toContain("Video removed");
+  expect(popup.get(".toast").textContent).toContain("Removed “Systems lecture”");
+  await popup.click(".undo-button");
+  expect(await getTimestamp("lecture-a")).toMatchObject({ ...lectureVideo, isFavorite: true, isSelected: true });
+  expect(popup.container.querySelectorAll(".video-row")).toHaveLength(1);
+  expect(popup.get(".toast").textContent).toContain("Video restored");
 });
 
 test("storage failure is distinct from an empty library and can be retried", async () => {

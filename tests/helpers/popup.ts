@@ -35,6 +35,24 @@ export async function renderPopup(activeVideo?: PlaybackStatus) {
   };
   return {
     host, container, get,
+    async waitFor(selector: string) {
+      for (let attempt = 0; attempt < 50; attempt++) {
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
+        const element = container.querySelector(selector);
+        if (element) return element;
+      }
+      return get(selector);
+    },
+    async upload(contents: string, name = "smartseek-backup.json") {
+      await act(async () => {
+        const input = get('input[type="file"]') as InstanceType<typeof host.HTMLInputElement>;
+        const transfer = new host.DataTransfer();
+        transfer.items.add(new host.File([contents], name, { type: "application/json" }));
+        Object.defineProperty(input, "files", { configurable: true, value: transfer.files });
+        input.dispatchEvent(new host.Event("change", { bubbles: true }));
+        await settle();
+      });
+    },
     async click(selector: string) {
       await act(async () => { get(selector).dispatchEvent(new host.MouseEvent("click", { bubbles: true, cancelable: true })); await settle(); });
     },

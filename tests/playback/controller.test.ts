@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { getTimestamp, getVideos, saveTimestamp } from "@/library/storage";
 import { saveSettings } from "@/settings/storage";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { deleteVideo } from "@/library/storage";
+import { deleteVideo, undoVideoRemoval } from "@/library/storage";
 import { lectureVideo } from "../fixtures/videos";
 import { playerFixture, settle } from "../helpers/player";
 
@@ -258,6 +258,26 @@ test("removal stops the active session until a new explicit save", async () => {
   expect(fixture.controller.getStatus().state).toBe("removed");
   expect(await fixture.controller.saveNow()).toMatchObject({ state: "saved", position: 60 });
   expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(60);
+});
+
+test("Undo re-enables the active session without seeking back to the restored timestamp", async () => {
+  fixture = playerFixture();
+  await settle();
+  fixture.state.paused = false;
+  fixture.media.currentTime = 40;
+  fixture.event("play");
+  await settle();
+  const removal = await deleteVideo("lecture-a");
+  await settle();
+  fixture.media.currentTime = 65;
+  await undoVideoRemoval(removal!.id);
+  await settle();
+  expect(fixture.media.currentTime).toBe(65);
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(40);
+  fixture.event("pause");
+  await settle();
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(65);
+  expect(fixture.controller.getStatus().state).toBe("saved");
 });
 
 test("same-video YouTube navigation events preserve tracking and never restore again", async () => {

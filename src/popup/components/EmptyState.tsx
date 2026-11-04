@@ -1,10 +1,14 @@
-import { FiBookmark, FiCheckCircle, FiMusic, FiSearch, FiStar } from "react-icons/fi";
+import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
+import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
 import type { VideoViewType } from "../types";
 
 type EmptyStateProps = { view: VideoViewType; searching: boolean; selectedMode: boolean; libraryEmpty: boolean; onReset: () => void };
 
 export default function EmptyState({ view, searching, selectedMode, libraryEmpty, onReset }: EmptyStateProps) {
-  const Icon = searching ? FiSearch : view === "favourites" ? FiStar : view === "completed" ? FiCheckCircle : view === "music" ? FiMusic : FiBookmark;
+  const Icon = searching ? MagnifyingGlassIcon : view === "favourites" ? StarIcon : view === "completed" ? CheckCircleIcon : view === "music" ? MusicNotesIcon : BookmarkSimpleIcon;
   const title = searching ? "No matching videos" : libraryEmpty ? "Your next video starts here" : view === "favourites" ? "Keep your favorites close" : view === "selected" ? "A little more intentional" : view === "completed" ? "Nothing finished just yet" : view === "music" ? "No saved music yet" : "You’re all caught up";
   const description = searching ? "Try another title, or clear your search." : view === "favourites" && !libraryEmpty ? "Star a video to find it here. Favorites are always kept until you remove them." : view === "completed" && !libraryEmpty ? "Videos you finish stay available in this view." : view === "selected" || selectedMode ? "Choose Save this video on YouTube, or choose a video already in your library." : view === "music" ? "Choose a music video to keep its place, or include music in Automatic mode." : "Watch a YouTube video and we’ll remember where you pause.";
   return (

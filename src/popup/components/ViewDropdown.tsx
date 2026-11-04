@@ -1,4 +1,4 @@
-import { FiChevronDown } from "react-icons/fi";
+import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { isViewType, VIEW_LABELS } from "../types";
 import type { VideoViewType } from "../types";
 
@@ -15,7 +15,7 @@ export default function ViewDropdown({ viewType, counts, onViewChange }: ViewDro
         <select aria-label="More library views" value={moreActive ? viewType : ""} onChange={(event) => { if (isViewType(event.target.value)) onViewChange(event.target.value); }}>
           <option value="" disabled>More</option>
           {(["selected", "music", "completed"] as const).map((view) => <option key={view} value={view}>{VIEW_LABELS[view]} ({counts[view]})</option>)}
-        </select><FiChevronDown aria-hidden="true" />
+        </select><CaretDownIcon aria-hidden="true" />
       </label>
     </div>
   );

@@ -7,7 +7,7 @@ import { readPolicy, readVideo } from "./records";
 const SESSION_PREFIX = "smartseek:playback:session:";
 const OWNER_PREFIX = "smartseek:playback:owner:";
 
-type Session = { videoId: string; documentId: string; removed: boolean; sequence: number };
+type Session = { videoId: string; documentId: string; removed: boolean; sequence: number; removalId?: string };
 type Owner = { sessionKey: string; interactionAt: number };
 export type PlaybackSource = { tabId: number; documentId: string };
 
@@ -16,11 +16,20 @@ function isSession(value: unknown): value is Session {
     typeof value.removed === "boolean" && Number.isSafeInteger(value.sequence);
 }
 
-export async function invalidatePlayback(videoId?: string): Promise<void> {
+export async function invalidatePlayback(videoId?: string, removalId?: string): Promise<void> {
   const stored: Record<string, unknown> = await chrome.storage.session.get(null);
   const changes = Object.fromEntries(Object.entries(stored).filter(([key, value]) =>
     key.startsWith(SESSION_PREFIX) && isSession(value) && (videoId === undefined || value.videoId === videoId))
-    .map(([key, value]) => [key, { ...(value as Session), removed: true }]));
+    .map(([key, value]) => [key, { ...(value as Session), removed: true, removalId }]));
+  if (Object.keys(changes).length) await chrome.storage.session.set(changes);
+}
+
+export async function restorePlayback(videoId: string, removalId?: string): Promise<void> {
+  const stored: Record<string, unknown> = await chrome.storage.session.get(null);
+  const changes = Object.fromEntries(Object.entries(stored).filter(([key, value]) =>
+    key.startsWith(SESSION_PREFIX) && isSession(value) && value.videoId === videoId && value.removed &&
+    (removalId === undefined || value.removalId === removalId))
+    .map(([key, value]) => [key, { ...(value as Session), removed: false, removalId: undefined }]));
   if (Object.keys(changes).length) await chrome.storage.session.set(changes);
 }
 

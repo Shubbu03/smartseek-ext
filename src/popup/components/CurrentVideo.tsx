@@ -1,4 +1,9 @@
-import { FiAlertCircle, FiBookmark, FiCheckCircle, FiLoader, FiMonitor, FiRefreshCw } from "react-icons/fi";
+import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
+import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
+import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { CircleNotchIcon } from "@phosphor-icons/react/dist/csr/CircleNotch";
+import { MonitorPlayIcon } from "@phosphor-icons/react/dist/csr/MonitorPlay";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowClockwise";
 import { useCurrentVideo } from "../hooks/useCurrentVideo";
 import { formatTime } from "../utils/videoUtils";
 
@@ -14,7 +19,7 @@ export default function CurrentVideo() {
       <p className="overline">Current YouTube video</p>
       <p className="current-video-title" title={status?.title || undefined}>{loading ? "Checking your current tab…" : status?.title || "A good place to pause."}</p>
       <div className={`current-video-status${failed ? " error-copy" : ""}`} role={failed ? "alert" : "status"}>
-        {saving || loading ? <FiLoader className="spin" aria-hidden="true" /> : failed ? <FiAlertCircle aria-hidden="true" /> : status?.state === "saved" ? <FiCheckCircle aria-hidden="true" /> : <FiMonitor aria-hidden="true" />}
+        {saving || loading ? <CircleNotchIcon className="spin" aria-hidden="true" /> : failed ? <WarningCircleIcon aria-hidden="true" /> : status?.state === "saved" ? <CheckCircleIcon aria-hidden="true" /> : <MonitorPlayIcon aria-hidden="true" />}
         <span>{message}</span>
       </div>
       {status?.position !== null && status?.position !== undefined && failed && <p className="last-saved">Last saved at {formatTime(status.position)}</p>}
@@ -22,9 +27,9 @@ export default function CurrentVideo() {
         <button className="icon-button current-save" disabled={!canSave} onClick={() => { void save(); }}
           aria-label={saving ? "Saving progress" : failed ? "Retry saving this video" : status.selected ? "Save progress now" : "Save this video"}
           title={saving ? "Saving…" : failed ? "Retry save" : status.selected ? "Save progress now" : "Save this video"}>
-          {saving ? <FiLoader className="spin" aria-hidden="true" /> : status.selected ? <FiCheckCircle aria-hidden="true" /> : <FiBookmark aria-hidden="true" />}
+          {saving ? <CircleNotchIcon className="spin" aria-hidden="true" /> : status.selected ? <CheckCircleIcon aria-hidden="true" /> : <BookmarkSimpleIcon aria-hidden="true" />}
         </button>
-      ) : error && !waiting ? <button className="icon-button current-save" onClick={() => { void reload(); }} aria-label="Check the current video again" title="Try again"><FiRefreshCw aria-hidden="true" /></button> : null}
+      ) : error && !waiting ? <button className="icon-button current-save" onClick={() => { void reload(); }} aria-label="Check the current video again" title="Try again"><ArrowClockwiseIcon aria-hidden="true" /></button> : null}
     </section>
   );
 }

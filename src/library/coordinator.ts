@@ -5,6 +5,10 @@ import { initializeLibrary } from "./migration";
 import { advancePolicyRevision, listVideos, readPolicy, readSettingsRecord, readVideo } from "./records";
 import { closeTabPlayback, invalidatePlayback, runPlayback } from "./playbackSessions";
 import type { PlaybackSource } from "./playbackSessions";
+import { applyPreparedImport, cancelPreparedImport, exportLibraryBackup, prepareLibraryImport } from "./transfer";
+import { clearRemovalReceipts, recoverDataMutation } from "./dataMutation";
+import { dismissRemoval, pendingRemoval, removeWithUndo, undoRemoval } from "./removals";
+import { DATA_KEYS } from "./dataKeys";
 
 const CLEANUP_BATCH_SIZE = 100;
 
@@ -16,11 +20,21 @@ export function createLibraryCoordinator() {
 
   async function run(command: LibraryCommand, source?: PlaybackSource): Promise<LibraryReplies[keyof LibraryReplies]> {
     status ??= await initializeLibrary();
+    await recoverDataMutation();
     switch (command.type) {
       case "library.get":
         return readVideo(command.videoId);
       case "library.list":
         return listVideos();
+      case "library.export":
+        return exportLibraryBackup();
+      case "library.import.preview":
+        return prepareLibraryImport(command.backup, command.mode, command.includeSettings);
+      case "library.import.apply":
+        return applyPreparedImport(command.previewId);
+      case "library.import.cancel":
+        await cancelPreparedImport(command.previewId);
+        return null;
       case "migration.status":
         return status;
       case "progress.save": {
@@ -47,19 +61,23 @@ export function createLibraryCoordinator() {
         }
         return null;
       case "video.remove":
-        await advancePolicyRevision();
-        await invalidatePlayback(command.videoId);
-        await chrome.storage.local.remove([
-          STORAGE_KEYS.progress(command.videoId), STORAGE_KEYS.preferences(command.videoId),
-        ]);
+        return removeWithUndo(command.videoId);
+      case "removal.pending":
+        return pendingRemoval();
+      case "removal.undo":
+        return undoRemoval(command.id);
+      case "removal.dismiss":
+        await dismissRemoval(command.id);
         return null;
       case "videos.clear": {
         await advancePolicyRevision();
         await invalidatePlayback();
+        await clearRemovalReceipts();
+        await chrome.storage.session.remove(DATA_KEYS.preview);
         const stored = await chrome.storage.local.get(null);
         // The old snapshot and migration backup can contain videos the user is deleting.
         await chrome.storage.local.remove([
-          ...Object.keys(stored).filter(isVideoKey), STORAGE_KEYS.backup, "video_progress",
+          ...Object.keys(stored).filter(isVideoKey), STORAGE_KEYS.backup, DATA_KEYS.importResult, "video_progress",
         ]);
         const clearedStatus: MigrationStatus = { ...status, warnings: [] };
         await chrome.storage.local.set({ [STORAGE_KEYS.meta]: clearedStatus });
