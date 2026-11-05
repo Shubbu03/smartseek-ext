@@ -46,7 +46,7 @@ export default function LibraryDataTools({ disabled, onImported }: LibraryDataTo
           {busy === "read" ? <CircleNotchIcon className="spin" aria-hidden="true" /> : <UploadSimpleIcon aria-hidden="true" />}{busy === "read" ? "Reading…" : "Import backup"}
         </button>
       </div>
-      <p className="backup-hint">Back up saved places, favorites, choices and preferences as JSON.</p>
+      <p className="backup-hint">Back up saved places, favorites, choices and preferences as JSON. Import also accepts v2 storage exports.</p>
       <input ref={input} type="file" className="sr-only" aria-label="Choose a SmartSeek backup file" accept=".json,application/json" tabIndex={-1}
         onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void chooseBackup(file); }} />
       {error && <p className="error-copy backup-message" role="alert">{error}</p>}

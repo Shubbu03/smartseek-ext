@@ -26,15 +26,15 @@ export default function SettingsView({ settings, saving, savedCount, onChange, o
         <h2 id="playback-heading" className="section-heading">Playback</h2>
         <div className="settings-card">
           <div className="setting-block">
-            <label htmlFor="settings-mode">Which videos should we remember?</label><p>Choose once. We’ll keep their progress up to date.</p>
+            <label htmlFor="settings-mode">Which videos should we remember?</label><p>In manual mode, click Save progress once for each video you want to track.</p>
             <div className="setting-select"><select id="settings-mode" disabled={saving} value={settings.saveMode ?? "automatic"}
               onChange={(event) => { if (event.target.value === "automatic" || event.target.value === "selected") void onChange({ saveMode: event.target.value }); }}>
-              <option value="automatic">Automatically save videos</option><option value="selected">Only videos I choose</option>
+              <option value="automatic">Automatic saving</option><option value="selected">Manual saving</option>
             </select><CaretDownIcon aria-hidden="true" /></div>
           </div>
           <SettingToggle id="auto-resume" label="Pick up where I left off" description="Resume a saved video automatically when you return." checked={settings.autoResume ?? true} disabled={saving} onChange={(autoResume) => { void onChange({ autoResume }); }} />
           <SettingToggle id="page-save-button" label="Show the YouTube save button" description="You can always save from the SmartSeek popup, too." checked={settings.showSaveButton ?? true} disabled={saving} onChange={(showSaveButton) => { void onChange({ showSaveButton }); }} />
-          <SettingToggle id="include-music" label="Automatically include music" description="Only affects Automatic mode. Music you choose is always saved." checked={settings.saveMusicVideosOnly} disabled={saving} onChange={(saveMusicVideosOnly) => { void onChange({ saveMusicVideosOnly }); }} />
+          <SettingToggle id="include-music" label="Automatically include music" description="Only affects automatic mode. Music you save manually is always tracked." checked={settings.saveMusicVideosOnly} disabled={saving} onChange={(saveMusicVideosOnly) => { void onChange({ saveMusicVideosOnly }); }} />
         </div>
       </section>
       <section className="settings-section" aria-labelledby="library-heading">
@@ -65,7 +65,7 @@ export default function SettingsView({ settings, saving, savedCount, onChange, o
       <section className="settings-section" aria-labelledby="appearance-heading">
         <h2 id="appearance-heading" className="section-heading">Appearance</h2>
         <div className="settings-card">
-          <div className="setting-block"><label htmlFor="theme">Theme</label><p>Keep Cobalt light, go dark, or follow your device.</p>
+          <div className="setting-block"><label htmlFor="theme">Theme</label><p>Use a light or dark theme, or follow your device.</p>
             <div className="setting-select"><select id="theme" disabled={saving} value={settings.theme ?? "system"} onChange={(event) => { if (isTheme(event.target.value)) void onChange({ theme: event.target.value }); }}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select><CaretDownIcon aria-hidden="true" /></div>
           </div>
           <div className="setting-block"><label htmlFor="density">Video list density</label><p>Choose a little more room or a little more library.</p>

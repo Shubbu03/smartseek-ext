@@ -1,4 +1,5 @@
 import { registerLibraryMessages } from "./libraryMessages";
+import { attachOpenYouTubeTabs } from "@/playback/attachment";
 
 export function startBackground() {
   const library = registerLibraryMessages();
@@ -9,6 +10,7 @@ export function startBackground() {
   });
   chrome.runtime.onInstalled.addListener(() => {
     library.initialize().catch(reportFailure);
+    void attachOpenYouTubeTabs().catch(() => undefined);
   });
   chrome.runtime.onStartup.addListener(() => {
     library.maintain().catch(reportFailure);

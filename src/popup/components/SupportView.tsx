@@ -38,7 +38,7 @@ export default function SupportView() {
   return <main className="popup-content support-content">
     <div className="page-heading"><h1>Let’s get you unstuck.</h1><p>A few checks, then a report you can review.</p></div>
     <section className="help-card" aria-labelledby="quick-help"><h2 id="quick-help">Try these first</h2>
-      <ul><li>After an update or reload, refresh open YouTube tabs.</li><li>In “Only videos I choose”, save each video once to start tracking it.</li><li>Regular YouTube watch pages are supported. Shorts, live streams and YouTube Music are not supported in this release.</li></ul>
+      <ul><li>After an update or reload, refresh open YouTube tabs.</li><li>In manual mode, click Save progress once per video. Its position keeps updating as you watch.</li><li>Regular YouTube watch pages are supported. Shorts, live streams and YouTube Music are not supported in this release.</li></ul>
       <p>Automatic saves happen about every 5 seconds while playing, plus pause and page-exit events when available. “Pick up where I left off” controls automatic resume.</p>
     </section>
     <section className="settings-section" aria-labelledby="report-heading"><h2 id="report-heading" className="section-heading">Prepare an issue report</h2>

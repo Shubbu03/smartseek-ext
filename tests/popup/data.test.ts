@@ -101,6 +101,7 @@ test("a failed export is visible and does not claim a download succeeded", async
 test("Undo remains available after reopening the popup, and bulk clear still requires confirmation", async () => {
   await saveTimestamp(lectureVideo);
   popup = await renderPopup();
+  await popup.click(".video-options > summary");
   await popup.click(".remove-button");
   await popup.dispose();
   popup = await renderPopup();

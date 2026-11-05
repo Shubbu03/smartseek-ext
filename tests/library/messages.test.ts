@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { getTimestamp, getVideos } from "@/library/storage";
 import { LIBRARY_CHANNEL } from "@/shared/libraryProtocol";
@@ -24,6 +24,28 @@ test("a supported top-frame content script can save/read its video and read sett
   expect(await fromContent({ type: "library.get", videoId: "lecture-a" })).toMatchObject({ ok: true, data: lectureVideo });
   expect(await fromContent({ type: "settings.get" })).toMatchObject({ ok: true, data: { saveMusicVideosOnly: false } });
   expect(await getTimestamp("lecture-a")).toEqual({ ...lectureVideo, isCompleted: false });
+});
+
+test("YouTube navigation authorizes the current watch URL instead of the sender's initial document URL", async () => {
+  vi.spyOn(fakeBrowser.tabs, "get").mockImplementation(async () => ({ id: 42, url: contentSender.url } as chrome.tabs.Tab));
+  const sender = { ...contentSender, url: "https://www.youtube.com/" };
+  expect(await fromContent({ type: "session.open", videoId: "lecture-a", sessionId: "session-a" }, sender)).toMatchObject({ ok: true });
+});
+
+test.each(["https://www.youtube.com/watch?v=another-video", "https://example.com/watch?v=lecture-a", "https://www.youtube.com/"])("a cached sender URL cannot authorize a video when the current tab is %s", async (url) => {
+  vi.mocked(fakeBrowser.tabs.get).mockImplementation(async () => ({ id: 42, url } as chrome.tabs.Tab));
+  for (const command of [{ type: "session.open", videoId: "lecture-a", sessionId: "session-a" }, { type: "library.get", videoId: "lecture-a" }]) {
+    expect(await fromContent(command)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+  }
+  expect(await fakeBrowser.storage.local.get(null)).toEqual({});
+});
+
+test("a closed tab and a mismatched sender origin cannot open a playback session", async () => {
+  const command = { type: "session.open", videoId: "lecture-a", sessionId: "session-a" };
+  vi.mocked(fakeBrowser.tabs.get).mockRejectedValue(new Error("No tab with id: 42"));
+  expect(await fromContent(command)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+  expect(await fromContent(command, { ...contentSender, origin: "https://example.com" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+  expect(await fakeBrowser.storage.local.get(null)).toEqual({});
 });
 
 test.each([

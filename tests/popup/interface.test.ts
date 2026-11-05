@@ -42,32 +42,56 @@ test("search, sorting and the selected view stay intact across settings navigati
   await setFavorite("lecture-a", true);
   await saveTimestamp(tutorialVideo);
   popup = await renderPopup();
-  await popup.click('.library-views > button:nth-child(2)');
+  await popup.select('[aria-label="Library view"]', "favourites");
+  await popup.click('[aria-label="Search and sort videos"]');
   await popup.search("Systems");
   await popup.select('[aria-label="Sort saved videos"]', "titleDesc");
   expect(popup.container.querySelectorAll(".video-row")).toHaveLength(1);
-  await popup.select('[aria-label="Saving mode"]', "selected");
-  expect((await getSettings()).saveMode).toBe("selected");
   await popup.click('[aria-label="Open settings"]');
+  await popup.select("#settings-mode", "selected");
   expect((popup.get("#settings-mode") as InstanceType<typeof popup.host.HTMLSelectElement>).value).toBe("selected");
-  await popup.select("#settings-mode", "automatic");
+  expect((await getSettings()).saveMode).toBe("selected");
   await popup.click('[aria-label="Back to library"]');
-  expect((popup.get('[aria-label="Saving mode"]') as InstanceType<typeof popup.host.HTMLSelectElement>).value).toBe("automatic");
   expect(popup.get('input[type="search"]').getAttribute("value")).toBe("Systems");
-  expect(popup.get('.library-views > button:nth-child(2)').getAttribute("aria-pressed")).toBe("true");
+  expect((popup.get('[aria-label="Library view"]') as InstanceType<typeof popup.host.HTMLSelectElement>).value).toBe("favourites");
   expect((popup.get('[aria-label="Sort saved videos"]') as InstanceType<typeof popup.host.HTMLSelectElement>).value).toBe("titleDesc");
   expect(popup.container.querySelectorAll(".video-row")).toHaveLength(1);
 });
 
-test("favorite, chosen and removal actions use committed data, and image failures use a local fallback", async () => {
+test("search opens on demand and closing it clears hidden filters without changing the library view", async () => {
+  await saveTimestamp(lectureVideo);
+  await setFavorite("lecture-a", true);
+  popup = await renderPopup();
+  expect(popup.container.querySelector('input[type="search"]')).toBeNull();
+  await popup.select('[aria-label="Library view"]', "favourites");
+  await popup.click('[aria-label="Search and sort videos"]');
+  expect(popup.host.document.activeElement).toBe(popup.get('input[type="search"]'));
+  await popup.search("not a matching title");
+  await popup.select('[aria-label="Sort saved videos"]', "titleDesc");
+  expect(popup.container.querySelectorAll(".video-row")).toHaveLength(0);
+  await popup.click('[aria-label="Close search and sorting"]');
+  expect(popup.container.querySelector('input[type="search"]')).toBeNull();
+  expect(popup.get("h1").textContent).toBe("Favorites (1)");
+  expect(popup.container.querySelectorAll(".video-row")).toHaveLength(1);
+  await popup.click('[aria-label="Search and sort videos"]');
+  expect((popup.get('input[type="search"]') as InstanceType<typeof popup.host.HTMLInputElement>).value).toBe("");
+  expect((popup.get('[aria-label="Sort saved videos"]') as InstanceType<typeof popup.host.HTMLSelectElement>).value).toBe("default");
+});
+
+test("favorite, manual-save and removal actions use committed data, and image failures use a local fallback", async () => {
   await saveTimestamp(lectureVideo);
   popup = await renderPopup();
   await popup.event(".video-thumbnail img", "error");
   expect(popup.container.querySelector(".video-thumbnail img")).toBeNull();
   expect(popup.get(".thumbnail-fallback")).toBeDefined();
   await popup.click(".favorite-button");
+  await popup.click(".video-options > summary");
+  expect(popup.get(".video-options").hasAttribute("open")).toBe(true);
   await popup.click(".choose-button");
   expect(await getTimestamp("lecture-a")).toMatchObject({ isFavorite: true, isSelected: true });
+  expect(popup.get(".toast").textContent).toContain("Saved for manual mode.");
+  expect(popup.get(".video-options").hasAttribute("open")).toBe(false);
+  await popup.click(".video-options > summary");
   await popup.click(".remove-button");
   expect(await getTimestamp("lecture-a")).toBeNull();
   expect(popup.container.querySelector("dialog")).toBeNull();
@@ -84,20 +108,20 @@ test("storage failure is distinct from an empty library and can be retried", asy
   popup = await renderPopup();
   expect(popup.get(".load-error").textContent).toContain("Storage is unavailable");
   expect(popup.container.querySelector(".empty-state")).toBeNull();
-  expect(popup.get(".popup-footer").textContent).toContain("Library unavailable");
   vi.mocked(fakeBrowser.storage.local.get).mockImplementation(read);
   await popup.click(".load-error .button");
   expect(popup.container.querySelector(".load-error")).toBeNull();
   expect(popup.get(".empty-state")).toBeDefined();
 });
 
-test("the current-video card keeps failed saves distinct from its last acknowledged position", async () => {
+test("the compact save action shows acknowledged feedback and keeps failed saves distinct from the last saved position", async () => {
   const player = {
     supported: true, videoId: "lecture-a", title: "Systems lecture", state: "saved" as const,
     selected: true, canSave: true, position: 120, message: "Saved at 2:00.",
   };
   popup = await renderPopup(player);
-  expect(popup.get(".current-video-title").textContent).toBe("Systems lecture");
+  expect(popup.get(".current-save").getAttribute("title")).toContain("Systems lecture");
+  expect(popup.container.querySelector(".current-video")).toBeNull();
   vi.mocked(fakeBrowser.tabs.sendMessage).mockImplementationOnce(async () => ({ ok: false, message: "Could not save this checkpoint" }));
   await popup.click(".current-save");
   expect(popup.get(".current-video [role='alert']").textContent).toContain("Could not save this checkpoint");

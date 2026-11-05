@@ -22,6 +22,7 @@ export type MigrationStatus = {
 };
 
 export type LibraryCommand =
+  | { type: "playback.attach"; tabId: number }
   | { type: "experience.get" }
   | { type: "experience.complete"; saveMode?: "automatic" | "selected" }
   | { type: "diagnostics.get" }
@@ -49,6 +50,7 @@ export type LibraryCommand =
   | { type: "session.close"; sessionId: string };
 
 export type LibraryReplies = {
+  "playback.attach": null;
   "experience.get": Experience;
   "experience.complete": Experience;
   "diagnostics.get": Diagnostics;
@@ -90,6 +92,9 @@ export function isMigrationStatus(value: unknown): value is MigrationStatus {
 export function parseCommand(value: unknown): LibraryCommand {
   if (!isRecord(value)) throw new Error("Invalid library command.");
   switch (value.type) {
+    case "playback.attach":
+      if (Number.isSafeInteger(value.tabId) && Number(value.tabId) >= 0) return { type: value.type, tabId: Number(value.tabId) };
+      break;
     case "experience.complete":
       if (value.saveMode === undefined || value.saveMode === "automatic" || value.saveMode === "selected") {
         return { type: value.type, ...(value.saveMode !== undefined ? { saveMode: value.saveMode } : {}) };

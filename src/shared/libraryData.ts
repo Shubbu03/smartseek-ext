@@ -1,6 +1,6 @@
 import type { VideoProgress } from "@/library/types";
 import type { Settings } from "@/settings/types";
-import { copyProgress, copySettings, isRecord, isSettings, isVideoProgress } from "./validation";
+import { copyProgress, copySettings, isRecord, isSettings, isVideoProgress, normalizeStoredSettings } from "./validation";
 
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export const MAX_BACKUP_VIDEOS = 25_000;
@@ -48,6 +48,18 @@ export function jsonBytes(value: unknown): number {
 
 export function parseLibraryBackup(value: unknown): LibraryBackup {
   if (jsonBytes(value) > MAX_BACKUP_BYTES) throw new Error("This backup exceeds the 10 MB import limit.");
+  if (isRecord(value) && value.format === undefined && Object.hasOwn(value, "video_progress")) {
+    if (!isRecord(value.video_progress)) throw new Error("This v2 export has an invalid video library.");
+    const entries = Object.entries(value.video_progress);
+    if (entries.length > MAX_BACKUP_VIDEOS) throw new Error("The backup contains more than 25,000 videos.");
+    const settings = value.smartseek_settings === undefined ? { saveMusicVideosOnly: false } : normalizeStoredSettings(value.smartseek_settings);
+    if (!settings) throw new Error("This v2 export contains invalid preferences.");
+    const videos = entries.map(([id, video], index) => {
+      if (!isVideoProgress(video) || video.videoId !== id) throw new Error(`Video ${index + 1} in the v2 export has invalid progress or metadata.`);
+      return copyLibraryVideo(video);
+    });
+    return { format: "smartseek-backup", version: 1, exportedAt: new Date().toISOString(), videos, settings: copySettings(settings) };
+  }
   if (!isRecord(value) || value.format !== "smartseek-backup") throw new Error("Choose a SmartSeek JSON backup exported from Settings.");
   if (value.version !== 1) throw new Error("This backup version is not supported. Use a compatible SmartSeek version.");
   if (typeof value.exportedAt !== "string" || value.exportedAt.length > 64 || !Number.isFinite(Date.parse(value.exportedAt))) throw new Error("The backup has an invalid export date.");

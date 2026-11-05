@@ -10,9 +10,9 @@ export type SortOption =
 export type VideoViewType = "recent" | "music" | "favourites" | "selected" | "completed";
 
 export const VIEW_LABELS = {
-    recent: "Continue",
+    recent: "Recent saves",
     favourites: "Favorites",
-    selected: "Chosen videos",
+    selected: "Manually saved",
     music: "Music",
     completed: "Completed",
 } satisfies Record<VideoViewType, string>;

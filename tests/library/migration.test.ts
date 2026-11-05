@@ -35,6 +35,54 @@ test("legacy videos, favorites, music flags and settings migrate without changin
   expect(stored[STORAGE_KEYS.preferences("lecture-a")]).toEqual({ isFavorite: true });
 });
 
+test.each(["fresh", "legacy", "interrupted"])("%s migration accepts storage read-back with reordered object properties", async (installation) => {
+  if (installation === "legacy") await fakeBrowser.storage.local.set(legacy);
+  if (installation === "interrupted") await fakeBrowser.storage.local.set({
+    video_progress: {},
+    [STORAGE_KEYS.backup]: { capturedAt: "2026-11-03T12:00:00.000Z", legacy },
+    [STORAGE_KEYS.progress("lecture-a")]: { ...lectureVideo, lastWatched: 1 },
+  });
+  const read = vi.mocked(fakeBrowser.storage.local.get).getMockImplementation()! as
+    (keys: string | string[] | Record<string, unknown> | null | undefined) => Promise<Record<string, unknown>>;
+  const reorder = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(reorder);
+    if (typeof value !== "object" || value === null) return value;
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, reorder(entry)]));
+  };
+  vi.mocked(fakeBrowser.storage.local.get).mockImplementation(async (keys) =>
+    reorder(await read(keys)) as Record<string, unknown>);
+  expect(await getVideos()).toEqual(installation === "fresh" ? {} : legacy.video_progress);
+  expect(await getSettings()).toEqual(installation === "fresh" ? { saveMusicVideosOnly: false, defaultView: "recent" } : legacy.smartseek_settings);
+  expect(await getMigrationStatus()).toMatchObject({ ready: true });
+  const stored = await fakeBrowser.storage.local.get(null);
+  expect(stored[STORAGE_KEYS.backup]).toMatchObject({ legacy: installation === "fresh" ? {} : legacy });
+  if (installation === "legacy") expect(stored.video_progress).toEqual(legacy.video_progress);
+  if (installation === "interrupted") {
+    expect(stored[STORAGE_KEYS.backup]).toMatchObject({ capturedAt: "2026-11-03T12:00:00.000Z" });
+    expect(stored.video_progress).toEqual({});
+  }
+});
+
+test.each(["progress", "backup-array"])("migration still rejects changed %s content during read-back", async (changed) => {
+  await fakeBrowser.storage.local.set({ video_progress: { "lecture-a": { ...lectureVideo, chapters: [0, 30] } } });
+  const read = vi.mocked(fakeBrowser.storage.local.get).getMockImplementation()! as
+    (keys: string | string[] | Record<string, unknown> | null | undefined) => Promise<Record<string, unknown>>;
+  vi.mocked(fakeBrowser.storage.local.get).mockImplementation(async (keys) => {
+    const result = await read(keys);
+    if (Array.isArray(keys) && (keys as string[]).includes(STORAGE_KEYS.backup)) {
+      if (changed === "progress") result[STORAGE_KEYS.progress("lecture-a")] = { ...lectureVideo, lastWatched: 999 };
+      else result[STORAGE_KEYS.backup] = { capturedAt: lectureVideo.updatedAt,
+        legacy: { video_progress: { "lecture-a": { ...lectureVideo, chapters: [30, 0] } } } };
+    }
+    return result;
+  });
+  await expect(getVideos()).rejects.toThrow("verification failed");
+  expect((await fakeBrowser.storage.local.get(null))[STORAGE_KEYS.meta]).toBeUndefined();
+  vi.mocked(fakeBrowser.storage.local.get).mockImplementation(read);
+  expect((await fakeBrowser.storage.local.get("video_progress")).video_progress).toEqual({ "lecture-a": { ...lectureVideo, chapters: [0, 30] } });
+  expect(await getVideos()).toEqual({ "lecture-a": lectureVideo });
+});
+
 test("migration keeps old and completed records, and accepts missing optional metadata", async () => {
   const videos = {
     old: { ...lectureVideo, videoId: "old", updatedAt: "2020-01-01T00:00:00Z" },

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
-import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { ArrowUUpLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowUUpLeft";
 import { CircleNotchIcon } from "@phosphor-icons/react/dist/csr/CircleNotch";
@@ -12,7 +12,6 @@ import { useExperience } from "./hooks/useExperience";
 import { useAppearance } from "./hooks/useAppearance";
 import type { ImportSummary } from "@/shared/libraryData";
 import { useVideoFiltering } from "./hooks/useVideoFiltering";
-import { SORT_LABELS, VIEW_LABELS } from "./types";
 import type { PopupView, SortOption, VideoViewType } from "./types";
 import Header from "./components/Header";
 import SettingsView from "./components/SettingsView";
@@ -31,7 +30,7 @@ import PrivacyView from "./components/PrivacyView";
 function LoadingLibrary() {
   return <main className="popup-content library-loading" aria-busy="true" aria-label="Loading your saved library">
     <p className="preparing-copy" role="status">Preparing your library and checking saved data…</p>
-    <div className="skeleton skeleton-heading" /><div className="skeleton skeleton-current" />
+    <div className="skeleton skeleton-heading" />
     {[0, 1, 2].map((key) => <div key={key} className="skeleton-row" aria-hidden="true"><div className="skeleton skeleton-thumb" /><div><div className="skeleton skeleton-line" /><div className="skeleton skeleton-line short" /></div></div>)}
   </main>;
 }
@@ -41,6 +40,8 @@ export default function App() {
   const [setupReady, setSetupReady] = useState(false);
   const [setupMode, setSetupMode] = useState<"automatic" | "selected" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchToggle = useRef<HTMLButtonElement>(null);
   const [sortOrder, setSortOrder] = useState<SortOption>("default");
   const [viewType, setViewType] = useState<VideoViewType>("recent");
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
@@ -123,6 +124,12 @@ export default function App() {
     setSetupMode(mode);
     if (await experience.complete(mode)) { setSetupReady(true); await preferences.reload(); }
   };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchTerm("");
+    setSortOrder("default");
+    searchToggle.current?.focus();
+  };
 
   function renderContent() {
     if (currentView === "support") return <SupportView />;
@@ -135,16 +142,26 @@ export default function App() {
     if (currentView === "settings") return <SettingsView settings={preferences.settings} saving={preferences.saving} savedCount={allVideos.length}
       onChange={preferences.update} onClear={() => setConfirmation(true)} onImported={imported} onNavigate={setCurrentView} />;
     return <main className="popup-content" id="main-content">
-          <div className="page-heading"><h1>Continue watching</h1></div>
-          <CurrentVideo />
+          <div className="library-heading">
+            <ViewDropdown viewType={viewType} counts={counts} onViewChange={setViewType} />
+            <CurrentVideo />
+            <button ref={searchToggle} className={`icon-button${searchOpen ? " is-active" : ""}`} aria-label={searchOpen ? "Close search and sorting" : "Search and sort videos"}
+              title={searchOpen ? "Close search" : "Search and sort"} aria-expanded={searchOpen} aria-controls="library-search"
+              onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }}>{searchOpen ? <XIcon aria-hidden="true" /> : <MagnifyingGlassIcon aria-hidden="true" />}</button>
+          </div>
           {library.warnings.length > 0 && <details className="migration-notice"><summary>Some saved data needs attention ({library.warnings.length})</summary><p>Valid saves are available below. Original upgrade data is kept for recovery.</p><ul>{library.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><button className="text-button" onClick={() => setCurrentView("support")}>Get recovery help</button></details>}
-          <SearchBar searchTerm={searchTerm} sortOrder={sortOrder} onSearchChange={setSearchTerm} onSortChange={setSortOrder} />
-          <ViewDropdown viewType={viewType} counts={counts} onViewChange={setViewType} />
-          <div className="list-meta"><span>{searchTerm ? `${videos.length} search ${videos.length === 1 ? "result" : "results"}` : `${videos.length} ${videos.length === 1 ? "video" : "videos"} · ${VIEW_LABELS[viewType]}`}</span><span>{SORT_LABELS[sortOrder]}</span></div>
+          {searchOpen && <div onKeyDown={(event) => { if (event.key === "Escape") closeSearch(); }}>
+            <SearchBar searchTerm={searchTerm} sortOrder={sortOrder} onSearchChange={setSearchTerm} onSortChange={setSortOrder} />
+            {searchTerm && <p className="search-results" role="status">{videos.length} {videos.length === 1 ? "match" : "matches"}</p>}
+          </div>}
           {videos.length > 0 ? <VideoList videos={videos} pendingIds={pendingIds}
             onDelete={(id) => { void videoAction(id, async () => { await deleteVideo(id); }); }}
             onToggleFavorite={(id) => { void videoAction(id, () => setFavorite(id, !library.videos[id]?.isFavorite)); }}
-            onToggleSelection={(id) => { void videoAction(id, () => setSelected(id, !library.videos[id]?.isSelected)); }} />
+            onToggleSelection={(id) => { void videoAction(id, async () => {
+              const selected = !library.videos[id]?.isSelected;
+              await setSelected(id, selected);
+              setNotice(selected ? "Saved for manual mode." : "Stopped saving in manual mode.");
+            }); }} />
             : <EmptyState view={viewType} searching={!!searchTerm} selectedMode={preferences.settings.saveMode === "selected"} libraryEmpty={allVideos.length === 0}
               onReset={() => { if (searchTerm) setSearchTerm(""); else setViewType("recent"); }} />}
         </main>;
@@ -152,14 +169,11 @@ export default function App() {
 
   return (
     <div className="smartseek-app h-150 w-100">
-      <Header currentView={currentView} setup={setup} mode={preferences.settings?.saveMode ?? "automatic"}
-        disabled={preferences.loading || !!preferences.error} saving={preferences.saving} onViewChange={setCurrentView}
-        onModeChange={(saveMode) => { void preferences.update({ saveMode }); }} />
+      <Header currentView={currentView} setup={setup} onViewChange={setCurrentView} />
       {saveError && <div className="notice-banner error-banner" role="alert"><WarningCircleIcon aria-hidden="true" /><p>{saveError}</p>
         <button className="icon-button" aria-label="Dismiss error" onClick={() => { setActionError(null); preferences.dismissSaveError(); removal.dismissError(); }}><XIcon aria-hidden="true" /></button></div>}
       {renderContent()}
 
-      <footer className="popup-footer"><span><ShieldCheckIcon aria-hidden="true" />{preferences.saving ? "Saving preferences…" : "Stored on this device"}</span><span>{library.loading ? "Loading library…" : library.error ? "Library unavailable" : `${allVideos.length} saved${counts.favourites > 0 ? ` · ${counts.favourites} ${counts.favourites === 1 ? "favorite" : "favorites"}` : ""}`}</span></footer>
       {removal.receipt ? <div className="toast undo-toast" role="status"><span className="toast-message" title={removal.receipt.title}>Removed “{removal.receipt.title}”</span>
         <button className="undo-button" disabled={removal.busy} onClick={() => { void undo(); }} aria-label={`Undo removal of ${removal.receipt.title}`}>
           {removal.busy ? <CircleNotchIcon className="spin" aria-hidden="true" /> : <ArrowUUpLeftIcon aria-hidden="true" />}{removal.busy ? "Restoring…" : "Undo"}</button>

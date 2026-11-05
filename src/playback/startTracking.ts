@@ -1,5 +1,6 @@
 import type { ContentScriptContext } from "#imports";
 import { mountPlayback } from "./controller";
+import { PLAYER_CHANNEL } from "@/shared/playerProtocol";
 
 export function startTracking(ctx: ContentScriptContext) {
   const playback = mountPlayback(window);
@@ -9,8 +10,8 @@ export function startTracking(ctx: ContentScriptContext) {
   const listener = (message: unknown, sender: chrome.runtime.MessageSender,
     sendResponse: (response: unknown) => void) => {
     if (typeof message !== "object" || message === null || !("channel" in message) ||
-      message.channel !== "smartseek:player:v3") return;
-    if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL("/"))) return;
+      message.channel !== PLAYER_CHANNEL) return;
+    if (sender.id !== chrome.runtime.id || sender.tab || (sender.url !== undefined && !sender.url.startsWith(chrome.runtime.getURL("/")))) return;
     if ("type" in message && message.type === "status") {
       sendResponse({ ok: true, data: playback.getStatus() });
     } else if ("type" in message && message.type === "save") {

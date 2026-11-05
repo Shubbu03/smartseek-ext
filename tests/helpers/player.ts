@@ -8,7 +8,7 @@ import { deliverMessage } from "./runtime";
 
 export async function settle() { await new Promise<void>((resolve) => setImmediate(resolve)); }
 
-export function playerFixture(query = "") {
+export function playerFixture(query = "", options: { senderUrl?: string; position?: number } = {}) {
   const host = new Window({ url: `https://www.youtube.com/watch?v=lecture-a${query}` });
   host.document.body.innerHTML = '<ytd-watch-flexy video-id="lecture-a"><div id="movie_player"><video class="html5-main-video"></video></div><ytd-watch-metadata><h1>Systems lecture</h1><div id="actions"><div id="flexible-actions"></div></div></ytd-watch-metadata></ytd-watch-flexy>';
   let media = host.document.querySelector("video")!;
@@ -22,10 +22,14 @@ export function playerFixture(query = "") {
     });
   }
   configure();
+  // A tab SmartSeek attaches to after the video has already advanced.
+  if (options.position !== undefined) media.currentTime = options.position;
+  const senderUrl = options.senderUrl ?? host.location.href;
+  vi.spyOn(fakeBrowser.tabs, "get").mockImplementation(async (tabId) => ({ id: tabId, url: host.location.href } as chrome.tabs.Tab));
   vi.mocked(fakeBrowser.runtime.sendMessage).mockImplementation(async (message: unknown) => {
     const content = isRecord(message) && isRecord(message.command) && String(message.command.type).startsWith("session.");
     return deliverMessage(message, content ? {
-      id: fakeBrowser.runtime.id, url: host.location.href, tab: { id: 42 } as chrome.tabs.Tab,
+      id: fakeBrowser.runtime.id, url: senderUrl, tab: { id: 42 } as chrome.tabs.Tab,
       frameId: 0, documentId: "document-a",
     } : { id: fakeBrowser.runtime.id, url: fakeBrowser.runtime.getURL("popup.html") });
   });

@@ -19,6 +19,18 @@ function bytesFor(key: string, value: unknown): number {
   return new TextEncoder().encode(key + JSON.stringify(value)).byteLength;
 }
 
+function sameStoredValue(expected: unknown, actual: unknown): boolean {
+  if (expected === actual) return true;
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual) && expected.length === actual.length &&
+      expected.every((value, index) => sameStoredValue(value, actual[index]));
+  }
+  if (!isRecord(expected) || !isRecord(actual)) return false;
+  const keys = Object.keys(expected);
+  return keys.length === Object.keys(actual).length && keys.every((key) =>
+    Object.hasOwn(actual, key) && sameStoredValue(expected[key], actual[key]));
+}
+
 export async function initializeLibrary(): Promise<MigrationStatus> {
   const stored: Record<string, unknown> = await chrome.storage.local.get(null);
   const existingMeta = stored[STORAGE_KEYS.meta];
@@ -81,7 +93,8 @@ export async function initializeLibrary(): Promise<MigrationStatus> {
   await chrome.storage.local.set(records);
   const toVerify = { ...records, [STORAGE_KEYS.backup]: backup };
   const verified: Record<string, unknown> = await chrome.storage.local.get(Object.keys(toVerify));
-  if (Object.entries(toVerify).some(([key, value]) => JSON.stringify(verified[key]) !== JSON.stringify(value))) {
+  // Storage can reorder object properties. Verify their contents, keeping array order significant.
+  if (Object.entries(toVerify).some(([key, value]) => !sameStoredValue(value, verified[key]))) {
     throw new Error("SmartSeek migration verification failed. Original saves and the migration backup are intact. Retry with a recovery build.");
   }
   // No commands run until this final commit succeeds. Retrying an incomplete migration uses the immutable backup.

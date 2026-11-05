@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { getTimestamp, getVideos, saveTimestamp } from "@/library/storage";
+import { getTimestamp, getVideos, saveTimestamp, setSelected } from "@/library/storage";
 import { saveSettings } from "@/settings/storage";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { deleteVideo, undoVideoRemoval } from "@/library/storage";
@@ -32,11 +32,36 @@ test("resume occurs once; comments, playlist query changes, and player replaceme
   expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(230);
 });
 
+test.each(["https://www.youtube.com/", "https://www.youtube.com/watch?v=previous-video"])("a saved video resumes after YouTube navigation when the sender retains %s", async (senderUrl) => {
+  await saveTimestamp(lectureVideo);
+  await setSelected("lecture-a", true);
+  fixture = playerFixture("", { senderUrl });
+  await settle();
+  expect(fixture.media.currentTime).toBe(120);
+  expect(fixture.controller.getStatus()).toMatchObject({ state: "saved", position: 120, selected: true });
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(120);
+  fixture.event("seeked");
+  fixture.media.currentTime = 180;
+  fixture.host.document.body.append(fixture.host.document.createElement("div"));
+  await settle();
+  expect(fixture.media.currentTime).toBe(180);
+});
+
 test.each(["&t=0", "&t=1m30s", "&start=30", "#t=45"])("an explicit timestamp (%s) takes precedence over the saved position", async (query) => {
   await saveTimestamp(lectureVideo);
   fixture = playerFixture(query);
   await settle();
   expect(fixture.media.currentTime).toBe(0);
+});
+
+test("attaching to a video that is already playing never seeks it back, and saving works immediately", async () => {
+  await saveTimestamp(lectureVideo);
+  fixture = playerFixture("", { position: 400 });
+  fixture.state.paused = false;
+  await settle();
+  expect(fixture.media.currentTime).toBe(400);
+  await expect(fixture.controller.saveNow()).resolves.toMatchObject({ state: "saved", position: 400 });
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(400);
 });
 
 test("a user seek before initialization finishes cancels pending restoration", async () => {
@@ -332,8 +357,54 @@ test("startup failure stays visible after one retry and a user can explicitly re
   await vi.advanceTimersByTimeAsync(300);
   await settle();
   expect(fixture.controller.getStatus()).toMatchObject({ state: "error", canSave: true });
+  expect(fixture.host.document.getElementById("smartseek-manual-save-button")).not.toBeNull();
   failure.mockRestore();
   fixture.media.currentTime = 40;
   expect(await fixture.controller.saveNow()).toMatchObject({ state: "saved", position: 40 });
   expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(40);
+});
+
+test("each manual click acknowledges the committed time and returns to a usable save button", async () => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  fixture = playerFixture();
+  await settle();
+  const button = fixture.host.document.querySelector<InstanceType<typeof fixture.host.HTMLButtonElement>>("#smartseek-manual-save-button")!;
+  fixture.media.currentTime = 40;
+  button.click();
+  await settle();
+  expect(button.textContent).toContain("Saved");
+  expect(button.textContent).toContain("0:40");
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(button.textContent).toContain("Save progress");
+  fixture.media.currentTime = 55;
+  button.click();
+  await settle();
+  expect(button.textContent).toContain("0:55");
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(55);
+  fixture.media.currentTime = 70;
+  button.click();
+  await settle();
+  expect(button.textContent).toContain("1:10");
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(70);
+});
+
+test("a failed page-button save stays retryable and a successful retry shows the committed place", async () => {
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  fixture = playerFixture();
+  await settle();
+  const button = fixture.host.document.querySelector<InstanceType<typeof fixture.host.HTMLButtonElement>>("#smartseek-manual-save-button")!;
+  const failure = vi.spyOn(fakeBrowser.storage.local, "set").mockRejectedValue(new Error("Storage is full"));
+  fixture.media.currentTime = 42;
+  button.click();
+  await settle();
+  await vi.advanceTimersByTimeAsync(300);
+  await settle();
+  expect(button.textContent).toContain("Retry save");
+  expect(button.disabled).toBe(false);
+  expect(await getTimestamp("lecture-a")).toBeNull();
+  failure.mockRestore();
+  button.click();
+  await settle();
+  expect(button.textContent).toContain("Saved · 0:42");
+  expect((await getTimestamp("lecture-a"))?.lastWatched).toBe(42);
 });

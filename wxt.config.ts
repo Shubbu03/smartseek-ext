@@ -17,10 +17,10 @@ export default defineConfig({
   manifestVersion: 3,
   manifest: {
     name: "SmartSeek",
-    version: "2.0.0",
+    version: "3.0.0",
     description:
       "Resume YouTube videos from the exact timestamp, even with history turned off.",
-    permissions: ["storage"],
+    permissions: ["storage", "scripting"],
     host_permissions: ["https://www.youtube.com/*"],
     action: {
       default_popup: "popup/index.html",

@@ -11,6 +11,7 @@ import { dismissRemoval, pendingRemoval, removeWithUndo, undoRemoval } from "./r
 import { DATA_KEYS } from "./dataKeys";
 import { completeExperience, readExperience } from "./experience";
 import { collectDiagnostics, exportRecoverySnapshot } from "@/support/diagnostics";
+import { ensurePlaybackAttached } from "@/playback/attachment";
 
 const CLEANUP_BATCH_SIZE = 100;
 
@@ -21,6 +22,7 @@ export function createLibraryCoordinator() {
   let status: MigrationStatus | undefined;
 
   async function run(command: LibraryCommand, source?: PlaybackSource): Promise<LibraryReplies[keyof LibraryReplies]> {
+    if (command.type === "playback.attach") { await ensurePlaybackAttached(command.tabId); return null; }
     if (command.type === "diagnostics.get") return collectDiagnostics();
     if (command.type === "recovery.export") return exportRecoverySnapshot();
     status ??= await initializeLibrary();

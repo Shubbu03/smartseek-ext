@@ -20,6 +20,7 @@ type Session = {
   opened?: SessionOpened;
   restoreDone: boolean;
   restoreTarget: number | null;
+  startPosition?: number;
   sequence: number;
   hasPlayed: boolean;
   needsClaim: boolean;
@@ -61,9 +62,9 @@ export function mountPlayback(host: BrowserWindow) {
     else if (openingError || current?.error) { state = "error"; message = openingError || current?.error || "Could not save."; }
     else if (!opened || !snapshot.confirmed) { state = "waiting"; message = snapshot.isAd ? "Saving is paused during advertisements." : "Waiting for confirmed video metadata."; }
     else if (current?.running) { state = "saving"; message = "Saving progress…"; }
-    else if (opened.removed) { state = "removed"; message = "Removed from your library. Save this video to track it again."; }
+    else if (opened.removed) { state = "removed"; message = "Removed from your library. Click Save progress to track it again."; }
     else if (!selected && (opened.policy.saveMode === "selected" || (snapshot.music === "music" && !opened.policy.includeMusic))) {
-      state = "not-tracking"; message = "Not tracking. Save this video to keep its progress updated.";
+      state = "not-tracking"; message = "Not tracking. Click Save progress once to keep this video’s position updated.";
     } else if (current?.feedback === "another-tab") { state = "another-tab"; message = "Another tab is tracking this video. Play, seek or save here to take over."; }
     else if (current?.lastPosition !== null && current?.lastPosition !== undefined) {
       state = "saved"; message = `Saved at ${timeLabel(current.lastPosition)}.`;
@@ -75,8 +76,8 @@ export function mountPlayback(host: BrowserWindow) {
     };
   }
 
-  const control = createPlayerControl(host, () => { void saveNow().catch(() => undefined); });
-  function render() { control.update(getStatus(), current?.opened?.policy.showSaveButton ?? false); }
+  const control = createPlayerControl(host, saveNow);
+  function render() { control.update(getStatus(), current?.opened?.policy.showSaveButton ?? (openingError !== null)); }
 
   function cancelPending(session: Session) {
     session.auto = undefined;
@@ -154,10 +155,15 @@ export function mountPlayback(host: BrowserWindow) {
       if (current) void synchronize(current);
     }
     const session = current;
+    // Record where this video was when first confirmed. Attaching to a tab that was already
+    // playing, or one YouTube already positioned, must not seek back to a saved checkpoint.
+    if (session && session.startPosition === undefined && snapshot.confirmed && snapshot.media) {
+      session.startPosition = snapshot.media.currentTime;
+    }
     if (session?.opened && !session.restoreDone && snapshot.confirmed && snapshot.media) {
       session.restoreDone = true;
       const saved = session.opened.saved;
-      if (session.opened.policy.autoResume && saved && !saved.isCompleted &&
+      if (session.opened.policy.autoResume && saved && !saved.isCompleted && (session.startPosition ?? 0) <= 5 &&
         saved.lastWatched > 5 && saved.lastWatched < snapshot.media.duration - 5) {
         session.restoreTarget = saved.lastWatched;
         snapshot.media.currentTime = saved.lastWatched;

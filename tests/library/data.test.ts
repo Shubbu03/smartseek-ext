@@ -200,3 +200,20 @@ test("a YouTube content script cannot import, export, or undo library data", asy
   }
   expect(await getVideos()).toEqual({});
 });
+
+test("a v2 storage export can merge into this installation while preserving favorites and current preferences", async () => {
+  await saveTimestamp(tutorialVideo);
+  const preview = await previewLibraryImport({ video_progress: { "lecture-a": { ...lectureVideo, isFavorite: true } },
+    smartseek_settings: { saveMusicVideosOnly: true, defaultView: "favourites" } }, "merge");
+  expect(preview).toMatchObject({ added: 1, total: 2, favorites: 1, preferences: false });
+  await applyLibraryImport(preview.id);
+  expect(await getTimestamp("lecture-a")).toEqual({ ...lectureVideo, isFavorite: true });
+  expect(await getTimestamp("tutorial-b")).toEqual(tutorialVideo);
+  expect((await getSettings()).saveMusicVideosOnly).toBe(false);
+});
+
+test.each([{ video_progress: [] }, { video_progress: { wrong: lectureVideo } }, { video_progress: { "lecture-a": { ...lectureVideo, lastWatched: -1 } } }])("malformed v2 exports cannot change an existing library", async (file) => {
+  await saveTimestamp(tutorialVideo);
+  await expect(previewLibraryImport(file, "merge")).rejects.toThrow();
+  expect(await getVideos()).toEqual({ "tutorial-b": tutorialVideo });
+});

@@ -58,15 +58,15 @@ export default function ImportDialog({ backup, fileName, onImported, onClose }: 
       <div className="import-file"><span title={fileName}>{fileName}</span><span>{backup.videos.length} {backup.videos.length === 1 ? "video" : "videos"}</span></div>
       <fieldset className="import-modes" disabled={applying}>
         <legend>How should we import it?</legend>
-        <label className={mode === "merge" ? "is-selected" : ""}><input type="radio" name="import-mode" value="merge" checked={mode === "merge"} onChange={() => setMode("merge")} /><span><strong>Merge libraries</strong><small>Keep newer progress, plus favorites and chosen videos from both.</small></span></label>
+        <label className={mode === "merge" ? "is-selected" : ""}><input type="radio" name="import-mode" value="merge" checked={mode === "merge"} onChange={() => setMode("merge")} /><span><strong>Merge libraries</strong><small>Keep newer progress, plus favorites and manually saved videos from both.</small></span></label>
         <label className={mode === "replace" ? "is-selected" : ""}><input type="radio" name="import-mode" value="replace" checked={mode === "replace"} onChange={() => setMode("replace")} /><span><strong>Replace my library</strong><small>Use the backup’s videos and choices. Other saved videos will be removed.</small></span></label>
       </fieldset>
       <SettingToggle id="import-preferences" label="Also import preferences" description="Apply this backup’s saving, resume and auto-delete settings." checked={includeSettings} disabled={applying} onChange={setIncludeSettings} />
-      {includeSettings && <p className="import-preferences-note">Saving: {backup.settings.saveMode === "selected" ? "Only videos I choose" : "Automatic"}. Auto-delete: {backup.settings.retentionDays ? `${backup.settings.retentionDays} days` : "off"}.</p>}
+      {includeSettings && <p className="import-preferences-note">Saving: {backup.settings.saveMode === "selected" ? "Manual" : "Automatic"}. Auto-delete: {backup.settings.retentionDays ? `${backup.settings.retentionDays} days` : "off"}.</p>}
       <div className="import-preview" aria-busy={loading}>
         {loading ? <p role="status"><CircleNotchIcon className="spin" aria-hidden="true" />Preparing your preview…</p> : preview ? <>
           <div className="import-counts"><div><strong>{preview.added}</strong><span>to add</span></div><div><strong>{preview.updated}</strong><span>to update</span></div><div className={preview.removed ? "error-copy" : ""}><strong>{preview.removed}</strong><span>to remove</span></div></div>
-          <p>{preview.total} saved after import · {preview.favorites} favorites · {preview.selected} chosen</p>
+          <p>{preview.total} saved after import · {preview.favorites} favorites · {preview.selected} manually saved</p>
           {!includeSettings && <p>Your current preferences will stay the same.</p>}
         </> : null}
       </div>
